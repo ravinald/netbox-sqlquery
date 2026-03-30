@@ -65,7 +65,8 @@ See [COMPATIBILITY.md](COMPATIBILITY.md) for the full version matrix.
 ## Installation
 
 ```bash
-pip install netbox-sqlquery
+cd /path/to/netbox
+venv/bin/pip install netbox-sqlquery
 ```
 
 Add to your NetBox `configuration.py`:

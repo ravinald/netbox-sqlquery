@@ -10,7 +10,7 @@ Creates or replaces the abstract SQL views (`nb_*`) that the Views mode uses. Th
 
 ```bash
 # Native install
-cd /opt/netbox/netbox
+cd /path/to/netbox/netbox
 python manage.py sqlquery_create_views
 
 # Docker

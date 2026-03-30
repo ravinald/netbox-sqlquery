@@ -8,7 +8,7 @@ The plugin creates `nb_*` views in the PostgreSQL database. Remove them before u
 
 ```bash
 # Native install
-cd /opt/netbox/netbox
+cd /path/to/netbox/netbox
 python manage.py sqlquery_create_views --drop
 
 # Docker

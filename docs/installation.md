@@ -9,14 +9,18 @@
 
 ### 1. Install the package
 
+Install into NetBox's virtual environment (adjust the path to match your NetBox installation):
+
 ```bash
-pip install netbox-sqlquery
+cd /path/to/netbox
+venv/bin/pip install netbox-sqlquery
 ```
 
 Or install from source:
 
 ```bash
-pip install -e /path/to/netbox-sqlquery
+cd /path/to/netbox
+venv/bin/pip install -e /path/to/netbox-sqlquery
 ```
 
 ### 2. Configure NetBox
@@ -45,7 +49,7 @@ See [configuration.md](configuration.md) for all available settings.
 ### 3. Run migrations
 
 ```bash
-cd /opt/netbox/netbox
+cd /path/to/netbox/netbox
 python manage.py migrate netbox_sqlquery
 ```
 
