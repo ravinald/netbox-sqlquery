@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.1
+
+- Fixed ruff formatting across all Python files
+- Fixed test suite to use NetBox's custom User and Group models
+- Fixed TablePermission.groups M2M to reference users.Group instead of auth.Group
+- Updated CI workflow with correct NetBox version matrix and configuration
+
 ## 0.1.0
 
 Initial release.
