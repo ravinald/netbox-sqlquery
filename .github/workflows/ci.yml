@@ -69,8 +69,8 @@ jobs:
       - name: Install NetBox dependencies
         run: |
           cd /opt/netbox
-          # Remove psycopg-c (optional C extension) to avoid build failures on CI
-          sed -i '/psycopg-c/d' requirements.txt
+          # Replace psycopg[c,pool] with psycopg[pool] to skip C extension build on CI
+          sed -i 's/psycopg\[c,pool\]/psycopg[pool]/g' requirements.txt
           pip install -r requirements.txt
 
       - name: Install plugin
