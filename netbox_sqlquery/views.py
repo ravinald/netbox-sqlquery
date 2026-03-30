@@ -388,9 +388,7 @@ class CSVExportView(UserPassesTestMixin, View):
 
         denied = check_access(request.user, extract_tables(sql))
         if denied:
-            return HttpResponse(
-                f"Access denied to: {', '.join(sorted(denied))}", status=403
-            )
+            return HttpResponse(f"Access denied to: {', '.join(sorted(denied))}", status=403)
 
         timeout_ms = get_plugin_config("netbox_sqlquery", "statement_timeout_ms")
 
