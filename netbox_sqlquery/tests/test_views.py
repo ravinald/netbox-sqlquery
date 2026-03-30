@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
@@ -58,7 +58,6 @@ class QueryViewExecutionTest(TestCase):
         response = self.client.post(
             "/plugins/sqlquery/", {"sql": "INSERT INTO foo VALUES (1)"}
         )
-        # Superuser can submit write queries (needs confirmation)
         self.assertEqual(response.status_code, 200)
 
     @patch("netbox_sqlquery.views.get_schema", return_value={})

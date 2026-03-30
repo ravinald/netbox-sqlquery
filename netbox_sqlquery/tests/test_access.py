@@ -2,7 +2,13 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
 from users.models import Group
 
-from netbox_sqlquery.access import ALL_TABLES, SHARED_TABLES, _allowed_tables, check_access, extract_tables
+from netbox_sqlquery.access import (
+    ALL_TABLES,
+    SHARED_TABLES,
+    _allowed_tables,
+    check_access,
+    extract_tables,
+)
 from netbox_sqlquery.models import TablePermission
 
 User = get_user_model()
