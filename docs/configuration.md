@@ -9,7 +9,7 @@ All settings go in your `PLUGINS_CONFIG` dictionary in `configuration.py`.
 - Type: `bool`
 - Default: `True`
 
-When `True`, only superusers can access the query view. When `False`, access is controlled by NetBox's ObjectPermission system -- users need the `view_query` permission on the `netbox_sqlquery.querypermission` object type.
+When `True`, only superusers can access the query view. When `False`, access is controlled by NetBox's ObjectPermission system – users need the `view_query` permission on the `netbox_sqlquery.querypermission` object type.
 
 ### `max_rows`
 

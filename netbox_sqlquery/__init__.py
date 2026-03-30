@@ -8,7 +8,10 @@ logger = logging.getLogger("netbox_sqlquery")
 class NetBoxSQLQueryConfig(PluginConfig):
     name = "netbox_sqlquery"
     verbose_name = "SQL Query Explorer"
-    description = "SQL query interface for NetBox with syntax highlighting, abstract views, and role-based access control"
+    description = (
+        "SQL query interface for NetBox with syntax highlighting,"
+        " abstract views, and role-based access control"
+    )
     version = "0.1.0"
     author = "Ravi Pina"
     author_email = "ravi@pina.org"
@@ -51,6 +54,7 @@ class NetBoxSQLQueryConfig(PluginConfig):
 
     def _register_navigation(self):
         from netbox.plugins.registration import register_menu, register_menu_items
+
         from .navigation import get_menu, get_menu_items
 
         try:

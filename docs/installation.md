@@ -3,15 +3,23 @@
 ## Requirements
 
 - NetBox 4.0 or later
-- Python 3.10, 3.11, or 3.12
+- Python 3.10 or later
 
-## Install from PyPI
+## Standalone install
+
+### 1. Install the package
 
 ```bash
 pip install netbox-sqlquery
 ```
 
-## Configure NetBox
+Or install from source:
+
+```bash
+pip install -e /path/to/netbox-sqlquery
+```
+
+### 2. Configure NetBox
 
 Add the plugin to your `configuration.py`:
 
@@ -32,20 +40,25 @@ PLUGINS_CONFIG = {
 }
 ```
 
-## Run migrations
+See [configuration.md](configuration.md) for all available settings.
+
+### 3. Run migrations
 
 ```bash
+cd /opt/netbox/netbox
 python manage.py migrate netbox_sqlquery
 ```
 
-## Collect static files
+### 4. Collect static files
 
 ```bash
 python manage.py collectstatic --no-input
 ```
 
-## Restart NetBox
+### 5. Restart NetBox
 
-Restart the NetBox services so the plugin is loaded.
+Restart all NetBox services (web server and worker) so the plugin is loaded.
 
-For Docker-based deployments, see [docker.md](docker.md).
+## Docker install
+
+For netbox-docker deployments, see [docker.md](docker.md).

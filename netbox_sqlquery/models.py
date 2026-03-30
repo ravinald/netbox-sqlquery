@@ -1,14 +1,15 @@
-import re
 
 from django.conf import settings
 from django.core.validators import RegexValidator
 from django.db import models
-
 from utilities.querysets import RestrictedQuerySet
 
 SAFE_NAME_VALIDATOR = RegexValidator(
     regex=r'^[a-zA-Z0-9][a-zA-Z0-9 _\-\.]*$',
-    message="Name must start with a letter or number and contain only letters, numbers, spaces, hyphens, underscores, and periods.",
+    message=(
+        "Name must start with a letter or number and contain only"
+        " letters, numbers, spaces, hyphens, underscores, and periods."
+    ),
 )
 
 
@@ -72,7 +73,7 @@ class TablePermission(models.Model):
 
     pattern = models.CharField(max_length=100)
     scope = models.CharField(max_length=10, choices=SCOPE_CHOICES, default=SCOPE_EXACT)
-    groups = models.ManyToManyField("auth.Group", blank=True)
+    groups = models.ManyToManyField("users.Group", blank=True)
     require_staff = models.BooleanField(default=False)
     require_superuser = models.BooleanField(default=False)
     allow = models.BooleanField(default=True)

@@ -1,6 +1,6 @@
 # Uninstalling
 
-Follow these steps in order to cleanly remove the plugin.
+Follow these steps to cleanly remove the plugin.
 
 ## 1. Drop abstract views
 

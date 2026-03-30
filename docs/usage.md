@@ -74,5 +74,5 @@ INSERT, UPDATE, and DELETE queries are available to superusers and users with th
 ## Query limits
 
 - Results are capped at the configured `max_rows` value (default: 1000)
-- Queries are cancelled if they exceed `statement_timeout_ms` (default: 10 seconds)
+- Queries are canceled if they exceed `statement_timeout_ms` (default: 10 seconds)
 - Read queries run inside a read-only transaction as a database-level safety guard

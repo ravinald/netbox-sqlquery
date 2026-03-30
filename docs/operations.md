@@ -109,9 +109,9 @@ If this fails, check that the database user has `CREATE` privilege on the `publi
 
 ### "Access denied to: users_owner" or similar
 
-A query references a table that is not in the user's allowed set. Common causes:
+A query references a table not in the user's allowed set. Common causes:
 
-- The table is a cross-app FK target not in the shared tables list. This is a bug -- report it.
+- The table is a cross-app FK target not in the shared tables list. This is a bug – report it.
 - The user lacks the NetBox view permission for the relevant menu group. Grant the appropriate permission (e.g., `ipam.view_ipaddress` for IPAM tables).
 
 ### Saved queries page returns 500

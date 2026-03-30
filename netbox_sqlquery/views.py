@@ -5,9 +5,7 @@ from django.contrib.auth.mixins import UserPassesTestMixin
 from django.db import DatabaseError, connection, transaction
 from django.http import JsonResponse
 from django.views import View
-from django.utils import timezone
 from django.views.generic import TemplateView
-
 from netbox.plugins import get_plugin_config
 from netbox.views.generic import (
     ObjectDeleteView,
@@ -17,8 +15,12 @@ from netbox.views.generic import (
 )
 
 from .access import (
-    ALL_TABLES, check_access, can_execute_write, extract_tables,
-    _allowed_tables, _hard_denies_set,
+    ALL_TABLES,
+    _allowed_tables,
+    _hard_denies_set,
+    can_execute_write,
+    check_access,
+    extract_tables,
 )
 from .filtersets import SavedQueryFilterSet
 from .forms import SavedQueryFilterForm, SavedQueryForm
@@ -158,7 +160,10 @@ class QueryView(UserPassesTestMixin, TemplateView):
             return self.render_to_response(ctx)
 
         if is_write and not can_execute_write(request.user):
-            ctx["error"] = "Write queries require the 'execute_write' permission or superuser status."
+            ctx["error"] = (
+                "Write queries require the 'change' permission"
+                " or superuser status."
+            )
             return self.render_to_response(ctx)
 
         if is_write and request.POST.get("confirmed") != "1":

@@ -1,11 +1,11 @@
-from unittest.mock import patch
-
-from django.contrib.auth.models import Group, User
+from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
+from users.models import Group
 
-from netbox_sqlquery.access import ALL_TABLES, check_access, extract_tables, _allowed_tables
+from netbox_sqlquery.access import ALL_TABLES, SHARED_TABLES, _allowed_tables, check_access, extract_tables
 from netbox_sqlquery.models import TablePermission
 
+User = get_user_model()
 
 PLUGIN_CONFIG = {
     "netbox_sqlquery": {
@@ -36,10 +36,10 @@ class CheckAccessTest(TestCase):
 
     def setUp(self):
         self.superuser = User.objects.create_user(
-            "superuser", password="test", is_superuser=True, is_staff=True,
+            "superuser", password="test", is_superuser=True,
         )
         self.staff_user = User.objects.create_user(
-            "staffuser", password="test", is_staff=True,
+            "staffuser", password="test",
         )
         self.regular_user = User.objects.create_user(
             "regular", password="test",
@@ -62,9 +62,9 @@ class CheckAccessTest(TestCase):
         allowed = _allowed_tables(self.staff_user)
         self.assertIn("dcim_", allowed)
 
-    def test_regular_user_limited_to_configured_subset(self):
+    def test_regular_user_gets_only_shared_tables(self):
         allowed = _allowed_tables(self.regular_user)
-        self.assertEqual(allowed, set())
+        self.assertEqual(allowed, SHARED_TABLES)
 
     def test_group_override_expands_access_for_group_member(self):
         self.regular_user.groups.add(self.group)
@@ -77,7 +77,7 @@ class CheckAccessTest(TestCase):
 
     def test_explicit_deny_in_table_permission_overrides_allow(self):
         self.staff_user.groups.add(self.group)
-        allow_perm = TablePermission.objects.create(
+        TablePermission.objects.create(
             pattern="dcim_", scope=TablePermission.SCOPE_PREFIX,
             require_staff=True, allow=True,
         )

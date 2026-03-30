@@ -1,5 +1,8 @@
 # netbox-sqlquery
 
+[![CI](https://github.com/ravinald/netbox-sqlquery/actions/workflows/ci.yml/badge.svg)](https://github.com/ravinald/netbox-sqlquery/actions/workflows/ci.yml)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+
 A NetBox plugin that provides a SQL query interface with syntax highlighting, abstract views, saved queries, and role-based access control.
 
 ## Features

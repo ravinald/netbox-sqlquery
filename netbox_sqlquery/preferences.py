@@ -1,6 +1,5 @@
-from users.preferences import UserPreference
-
 from netbox.choices import ColorChoices
+from users.preferences import UserPreference
 
 COLOR_CHOICES = ColorChoices.CHOICES
 
@@ -57,6 +56,9 @@ preferences = {
             ("on", "On (skip confirmation)"),
         ),
         default="off",
-        description="Skip the confirmation dialog when running INSERT, UPDATE, or DELETE queries. Superuser only.",
+        description=(
+            "Skip the confirmation dialog when running"
+            " INSERT, UPDATE, or DELETE queries."
+        ),
     ),
 }

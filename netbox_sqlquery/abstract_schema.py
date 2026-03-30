@@ -203,7 +203,7 @@ def _has_tags(model):
                 return True
     # Also check via the through table pattern
     try:
-        tags_field = model._meta.get_field("tags")
+        model._meta.get_field("tags")
         return True
     except Exception:
         return False

@@ -7,12 +7,28 @@ on:
     branches: [main]
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install ruff
+      - run: ruff check .
+      - run: ruff format --check .
+
   test:
     runs-on: ubuntu-latest
+    needs: lint
     strategy:
+      fail-fast: false
       matrix:
-        python-version: ["3.10", "3.11", "3.12"]
-        netbox-version: ["4.0", "4.1"]
+        include:
+          - netbox-version: "4.0.11"
+            python-version: "3.11"
+          - netbox-version: "4.5.5"
+            python-version: "3.12"
     services:
       postgres:
         image: postgres:16
@@ -40,9 +56,9 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Clone NetBox
+      - name: Clone NetBox v${{ matrix.netbox-version }}
         run: |
-          git clone --branch v${{ matrix.netbox-version }}.0 --depth 1 \
+          git clone --branch v${{ matrix.netbox-version }} --depth 1 \
             https://github.com/netbox-community/netbox.git /opt/netbox
 
       - name: Install NetBox dependencies
@@ -51,25 +67,27 @@ jobs:
           pip install -r requirements.txt
 
       - name: Install plugin
-        run: |
-          pip install -e .
+        run: pip install -e .
 
       - name: Configure NetBox
         run: |
           cat > /opt/netbox/netbox/netbox/configuration.py << 'CONF'
           ALLOWED_HOSTS = ['*']
-          DATABASE = {
-              'NAME': 'netbox',
-              'USER': 'netbox',
-              'PASSWORD': 'netbox',
-              'HOST': 'localhost',
-              'PORT': '5432',
+          DATABASES = {
+              'default': {
+                  'ENGINE': 'django.db.backends.postgresql',
+                  'NAME': 'netbox',
+                  'USER': 'netbox',
+                  'PASSWORD': 'netbox',
+                  'HOST': 'localhost',
+                  'PORT': '5432',
+              }
           }
           REDIS = {
               'tasks': {'HOST': 'localhost', 'PORT': 6379, 'DATABASE': 0},
               'caching': {'HOST': 'localhost', 'PORT': 6379, 'DATABASE': 1},
           }
-          SECRET_KEY = 'test-secret-key-not-for-production'
+          SECRET_KEY = 'abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnop'
           PLUGINS = ['netbox_sqlquery']
           CONF
 
@@ -83,19 +101,9 @@ jobs:
           cd /opt/netbox/netbox
           python manage.py test netbox_sqlquery --no-input
 
-  lint:
+  docker-test:
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - run: pip install ruff
-      - run: ruff check .
-      - run: ruff format --check .
-
-  docker-install-test:
-    runs-on: ubuntu-latest
+    needs: lint
     steps:
       - uses: actions/checkout@v4
 
@@ -104,27 +112,51 @@ jobs:
           git clone --depth 1 \
             https://github.com/netbox-community/netbox-docker.git /tmp/netbox-docker
 
-      - name: Copy plugin docker files
+      - name: Set up plugin files
         run: |
           cp docker/plugin_requirements.txt /tmp/netbox-docker/
           cp docker/Dockerfile-Plugins /tmp/netbox-docker/
           cp docker/docker-compose.override.yml /tmp/netbox-docker/
+          cp -r . /tmp/netbox-docker/netbox-sqlquery
+          # Enable the plugin in config
+          cat > /tmp/netbox-docker/configuration/plugins.py << 'EOF'
+          PLUGINS = ["netbox_sqlquery"]
+          EOF
 
-      - name: Build and start
+      - name: Build custom image
         run: |
           cd /tmp/netbox-docker
           docker compose build --no-cache
-          docker compose up -d
-          sleep 30
 
-      - name: Check plugin loads
+      - name: Start stack
         run: |
-          STATUS=$(docker compose -f /tmp/netbox-docker/docker-compose.yml \
-            -f /tmp/netbox-docker/docker-compose.override.yml \
-            exec -T netbox curl -s -o /dev/null -w '%{http_code}' \
+          cd /tmp/netbox-docker
+          docker compose up -d
+          # Wait for healthy
+          for i in $(seq 1 30); do
+            if docker compose ps netbox | grep -q healthy; then
+              echo "NetBox is healthy"
+              break
+            fi
+            echo "Waiting... ($i/30)"
+            sleep 10
+          done
+
+      - name: Verify plugin loads
+        run: |
+          cd /tmp/netbox-docker
+          STATUS=$(docker compose exec -T netbox curl -s -o /dev/null -w '%{http_code}' \
             http://localhost:8080/plugins/sqlquery/)
           echo "HTTP status: $STATUS"
           [ "$STATUS" = "200" ] || [ "$STATUS" = "302" ] || [ "$STATUS" = "403" ]
+
+      - name: Verify abstract views created
+        run: |
+          cd /tmp/netbox-docker
+          COUNT=$(docker compose exec -T postgres psql -U netbox -d netbox -t -c \
+            "SELECT COUNT(*) FROM information_schema.views WHERE table_schema='public' AND table_name LIKE 'nb_%'")
+          echo "Abstract views: $COUNT"
+          [ "$(echo $COUNT | tr -d ' ')" -gt 0 ]
 
       - name: Cleanup
         if: always()
