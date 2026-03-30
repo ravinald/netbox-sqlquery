@@ -61,6 +61,11 @@ jobs:
           git clone --branch v${{ matrix.netbox-version }} --depth 1 \
             https://github.com/netbox-community/netbox.git /opt/netbox
 
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq libpq-dev
+
       - name: Install NetBox dependencies
         run: |
           cd /opt/netbox
