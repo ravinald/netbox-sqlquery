@@ -1,11 +1,10 @@
-
 from django.conf import settings
 from django.core.validators import RegexValidator
 from django.db import models
 from utilities.querysets import RestrictedQuerySet
 
 SAFE_NAME_VALIDATOR = RegexValidator(
-    regex=r'^[a-zA-Z0-9][a-zA-Z0-9 _\-\.]*$',
+    regex=r"^[a-zA-Z0-9][a-zA-Z0-9 _\-\.]*$",
     message=(
         "Name must start with a letter or number and contain only"
         " letters, numbers, spaces, hyphens, underscores, and periods."
@@ -53,6 +52,7 @@ class SavedQuery(models.Model):
 
     def get_absolute_url(self):
         from django.urls import reverse
+
         return reverse("plugins:netbox_sqlquery:savedquery", kwargs={"pk": self.pk})
 
     @staticmethod

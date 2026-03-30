@@ -44,6 +44,7 @@ class NetBoxSQLQueryConfig(PluginConfig):
         # Create abstract SQL views
         try:
             from .abstract_schema import ensure_views
+
             ensure_views()
         except Exception as exc:
             logger.warning(
@@ -59,6 +60,7 @@ class NetBoxSQLQueryConfig(PluginConfig):
 
         try:
             from netbox.plugins import get_plugin_config
+
             top_level = get_plugin_config("netbox_sqlquery", "top_level_menu")
         except Exception:
             top_level = False

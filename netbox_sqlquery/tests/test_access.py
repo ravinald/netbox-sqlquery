@@ -21,7 +21,6 @@ PLUGIN_CONFIG = {
 
 
 class ExtractTablesTest(TestCase):
-
     def test_extract_tables_finds_from_clause(self):
         sql = "SELECT * FROM dcim_device WHERE id = 1"
         self.assertEqual(extract_tables(sql), {"dcim_device"})
@@ -39,16 +38,19 @@ class ExtractTablesTest(TestCase):
 
 @override_settings(PLUGINS_CONFIG=PLUGIN_CONFIG)
 class CheckAccessTest(TestCase):
-
     def setUp(self):
         self.superuser = User.objects.create_user(
-            "superuser", password="test", is_superuser=True,
+            "superuser",
+            password="test",
+            is_superuser=True,
         )
         self.staff_user = User.objects.create_user(
-            "staffuser", password="test",
+            "staffuser",
+            password="test",
         )
         self.regular_user = User.objects.create_user(
-            "regular", password="test",
+            "regular",
+            password="test",
         )
         self.group = Group.objects.create(name="network_team")
 
@@ -62,8 +64,10 @@ class CheckAccessTest(TestCase):
 
     def test_staff_tier_default_allows_dcim_tables(self):
         TablePermission.objects.create(
-            pattern="dcim_", scope=TablePermission.SCOPE_PREFIX,
-            require_staff=True, allow=True,
+            pattern="dcim_",
+            scope=TablePermission.SCOPE_PREFIX,
+            require_staff=True,
+            allow=True,
         )
         allowed = _allowed_tables(self.staff_user)
         self.assertIn("dcim_", allowed)
@@ -75,7 +79,9 @@ class CheckAccessTest(TestCase):
     def test_group_override_expands_access_for_group_member(self):
         self.regular_user.groups.add(self.group)
         perm = TablePermission.objects.create(
-            pattern="ipam_", scope=TablePermission.SCOPE_PREFIX, allow=True,
+            pattern="ipam_",
+            scope=TablePermission.SCOPE_PREFIX,
+            allow=True,
         )
         perm.groups.add(self.group)
         allowed = _allowed_tables(self.regular_user)
@@ -84,11 +90,14 @@ class CheckAccessTest(TestCase):
     def test_explicit_deny_in_table_permission_overrides_allow(self):
         self.staff_user.groups.add(self.group)
         TablePermission.objects.create(
-            pattern="dcim_", scope=TablePermission.SCOPE_PREFIX,
-            require_staff=True, allow=True,
+            pattern="dcim_",
+            scope=TablePermission.SCOPE_PREFIX,
+            require_staff=True,
+            allow=True,
         )
         deny_perm = TablePermission.objects.create(
-            pattern="dcim_", scope=TablePermission.SCOPE_PREFIX,
+            pattern="dcim_",
+            scope=TablePermission.SCOPE_PREFIX,
             allow=False,
         )
         deny_perm.groups.add(self.group)

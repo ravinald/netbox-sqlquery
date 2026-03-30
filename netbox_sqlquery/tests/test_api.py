@@ -14,11 +14,15 @@ class SavedQueryModelAPITest(TestCase):
         self.user2 = User.objects.create_user("user2", password="test")
 
         self.private_query = SavedQuery.objects.create(
-            name="Private", sql="SELECT 1", owner=self.user1,
+            name="Private",
+            sql="SELECT 1",
+            owner=self.user1,
             visibility=SavedQuery.VISIBILITY_PRIVATE,
         )
         self.global_query = SavedQuery.objects.create(
-            name="Global", sql="SELECT 2", owner=self.user1,
+            name="Global",
+            sql="SELECT 2",
+            owner=self.user1,
             visibility=SavedQuery.VISIBILITY_GLOBAL,
         )
 

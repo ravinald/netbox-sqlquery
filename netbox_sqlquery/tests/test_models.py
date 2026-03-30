@@ -8,20 +8,25 @@ User = get_user_model()
 
 
 class SavedQueryVisibilityTest(TestCase):
-
     def setUp(self):
         self.user1 = User.objects.create_user("user1", password="test")
         self.user2 = User.objects.create_user("user2", password="test")
         self.private_query = SavedQuery.objects.create(
-            name="Private", sql="SELECT 1", owner=self.user1,
+            name="Private",
+            sql="SELECT 1",
+            owner=self.user1,
             visibility=SavedQuery.VISIBILITY_PRIVATE,
         )
         self.global_query = SavedQuery.objects.create(
-            name="Global", sql="SELECT 2", owner=self.user1,
+            name="Global",
+            sql="SELECT 2",
+            owner=self.user1,
             visibility=SavedQuery.VISIBILITY_GLOBAL,
         )
         self.editable_query = SavedQuery.objects.create(
-            name="Editable", sql="SELECT 3", owner=self.user1,
+            name="Editable",
+            sql="SELECT 3",
+            owner=self.user1,
             visibility=SavedQuery.VISIBILITY_GLOBAL_EDITABLE,
         )
 

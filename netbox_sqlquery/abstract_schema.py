@@ -150,19 +150,23 @@ def _get_view_name(model):
 def _get_table_columns(table_name):
     """Get column info from information_schema for a table."""
     with connection.cursor() as cursor:
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT column_name, data_type, is_nullable
             FROM information_schema.columns
             WHERE table_schema = 'public' AND table_name = %s
             ORDER BY ordinal_position
-        """, [table_name])
+        """,
+            [table_name],
+        )
         return cursor.fetchall()
 
 
 def _get_fk_map(table_name):
     """Get FK column -> target table mapping from information_schema."""
     with connection.cursor() as cursor:
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT kcu.column_name, ccu.table_name
             FROM information_schema.table_constraints tc
             JOIN information_schema.key_column_usage kcu
@@ -174,20 +178,25 @@ def _get_fk_map(table_name):
             WHERE tc.constraint_type = 'FOREIGN KEY'
               AND tc.table_schema = 'public'
               AND kcu.table_name = %s
-        """, [table_name])
+        """,
+            [table_name],
+        )
         return {row[0]: row[1] for row in cursor.fetchall()}
 
 
 def _target_has_column(table_name, column_name):
     """Check if a table has a specific column."""
     with connection.cursor() as cursor:
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT 1 FROM information_schema.columns
             WHERE table_schema = 'public'
               AND table_name = %s
               AND column_name = %s
             LIMIT 1
-        """, [table_name, column_name])
+        """,
+            [table_name, column_name],
+        )
         return cursor.fetchone() is not None
 
 
@@ -198,8 +207,7 @@ def _has_tags(model):
             related = field.related_model
             if related._meta.db_table == "extras_taggeditem":
                 return True
-            if (related._meta.app_label == "extras"
-                    and related._meta.model_name == "taggeditem"):
+            if related._meta.app_label == "extras" and related._meta.model_name == "taggeditem":
                 return True
     # Also check via the through table pattern
     try:

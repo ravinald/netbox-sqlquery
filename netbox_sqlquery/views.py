@@ -60,13 +60,10 @@ class QueryView(UserPassesTestMixin, TemplateView):
         denied = _hard_denies_set()
 
         if allowed is ALL_TABLES:
-            raw_schema = {
-                t: cols for t, cols in schema.items() if t not in denied
-            }
+            raw_schema = {t: cols for t, cols in schema.items() if t not in denied}
         else:
             raw_schema = {
-                t: cols for t, cols in schema.items()
-                if t in allowed and t not in denied
+                t: cols for t, cols in schema.items() if t in allowed and t not in denied
             }
         ctx["raw_schema"] = raw_schema
 
@@ -113,28 +110,25 @@ class QueryView(UserPassesTestMixin, TemplateView):
                 user_config.set(f"plugins.netbox_sqlquery.{key}", val)
             user_config.save()
 
-        ctx["highlight_prefs_json"] = json.dumps({
-            "enabled": user_config.get(
-                "plugins.netbox_sqlquery.highlight_enabled", "on") == "on",
-            "keyword": user_config.get(
-                "plugins.netbox_sqlquery.color_keyword", "2196f3"),
-            "function": user_config.get(
-                "plugins.netbox_sqlquery.color_function", "9c27b0"),
-            "string": user_config.get(
-                "plugins.netbox_sqlquery.color_string", "2f6a31"),
-            "number": user_config.get(
-                "plugins.netbox_sqlquery.color_number", "ff5722"),
-            "operator": user_config.get(
-                "plugins.netbox_sqlquery.color_operator", "aa1409"),
-            "comment": user_config.get(
-                "plugins.netbox_sqlquery.color_comment", "9e9e9e"),
-        })
+        ctx["highlight_prefs_json"] = json.dumps(
+            {
+                "enabled": user_config.get("plugins.netbox_sqlquery.highlight_enabled", "on")
+                == "on",
+                "keyword": user_config.get("plugins.netbox_sqlquery.color_keyword", "2196f3"),
+                "function": user_config.get("plugins.netbox_sqlquery.color_function", "9c27b0"),
+                "string": user_config.get("plugins.netbox_sqlquery.color_string", "2f6a31"),
+                "number": user_config.get("plugins.netbox_sqlquery.color_number", "ff5722"),
+                "operator": user_config.get("plugins.netbox_sqlquery.color_operator", "aa1409"),
+                "comment": user_config.get("plugins.netbox_sqlquery.color_comment", "9e9e9e"),
+            }
+        )
 
         # Write query support flags
         ctx["can_write"] = can_execute_write(self.request.user)
         ctx["is_superuser"] = self.request.user.is_superuser
-        ctx["skip_write_confirm"] = user_config.get(
-            "plugins.netbox_sqlquery.skip_write_confirm", "off") == "on"
+        ctx["skip_write_confirm"] = (
+            user_config.get("plugins.netbox_sqlquery.skip_write_confirm", "off") == "on"
+        )
 
         return ctx
 
@@ -160,10 +154,7 @@ class QueryView(UserPassesTestMixin, TemplateView):
             return self.render_to_response(ctx)
 
         if is_write and not can_execute_write(request.user):
-            ctx["error"] = (
-                "Write queries require the 'change' permission"
-                " or superuser status."
-            )
+            ctx["error"] = "Write queries require the 'change' permission or superuser status."
             return self.render_to_response(ctx)
 
         if is_write and request.POST.get("confirmed") != "1":
@@ -303,11 +294,15 @@ class SavedQueryAjaxSave(UserPassesTestMixin, View):
 
         # Validate name against injection
         import re
-        if not re.match(r'^[a-zA-Z0-9][a-zA-Z0-9 _\-\.]*$', name):
-            return JsonResponse({
-                "error": "Name must start with a letter or number and contain only "
-                         "letters, numbers, spaces, hyphens, underscores, and periods."
-            }, status=400)
+
+        if not re.match(r"^[a-zA-Z0-9][a-zA-Z0-9 _\-\.]*$", name):
+            return JsonResponse(
+                {
+                    "error": "Name must start with a letter or number and contain only "
+                    "letters, numbers, spaces, hyphens, underscores, and periods."
+                },
+                status=400,
+            )
 
         if visibility not in dict(SavedQuery.VISIBILITY_CHOICES):
             return JsonResponse({"error": "Invalid visibility."}, status=400)
@@ -319,11 +314,13 @@ class SavedQueryAjaxSave(UserPassesTestMixin, View):
             visibility=visibility,
             owner=request.user,
         )
-        return JsonResponse({
-            "id": query.pk,
-            "name": query.name,
-            "message": f"Query '{query.name}' saved.",
-        })
+        return JsonResponse(
+            {
+                "id": query.pk,
+                "name": query.name,
+                "message": f"Query '{query.name}' saved.",
+            }
+        )
 
 
 class SavedQueryAjaxList(UserPassesTestMixin, View):
@@ -338,17 +335,19 @@ class SavedQueryAjaxList(UserPassesTestMixin, View):
         if search:
             queries = queries.filter(name__icontains=search)
         queries = queries.order_by("name")[:50]
-        return JsonResponse({
-            "results": [
-                {
-                    "id": q.pk,
-                    "name": q.name,
-                    "description": q.description,
-                    "sql": q.sql,
-                    "visibility": q.get_visibility_display(),
-                    "owner": q.owner.username,
-                    "is_own": q.owner_id == request.user.pk,
-                }
-                for q in queries
-            ]
-        })
+        return JsonResponse(
+            {
+                "results": [
+                    {
+                        "id": q.pk,
+                        "name": q.name,
+                        "description": q.description,
+                        "sql": q.sql,
+                        "visibility": q.get_visibility_display(),
+                        "owner": q.owner.username,
+                        "is_own": q.owner_id == request.user.pk,
+                    }
+                    for q in queries
+                ]
+            }
+        )

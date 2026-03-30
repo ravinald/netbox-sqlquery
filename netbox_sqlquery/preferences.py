@@ -57,8 +57,7 @@ preferences = {
         ),
         default="off",
         description=(
-            "Skip the confirmation dialog when running"
-            " INSERT, UPDATE, or DELETE queries."
+            "Skip the confirmation dialog when running INSERT, UPDATE, or DELETE queries."
         ),
     ),
 }
