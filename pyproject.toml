@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "netbox-sqlquery"
-version = "0.1.1"
+version = "0.1.2"
 description = "SQL query interface for NetBox with syntax highlighting, abstract views, and role-based access control"
 readme = "README.md"
 license = "Apache-2.0"
@@ -16,6 +16,12 @@ authors = [
 
 [tool.setuptools.packages.find]
 include = ["netbox_sqlquery*"]
+
+[tool.setuptools.package-data]
+netbox_sqlquery = [
+    "templates/**/*.html",
+    "static/**/*",
+]
 
 [project.urls]
 Homepage = "https://github.com/ravinald/netbox-sqlquery"

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.2
+
+- Fixed package to include templates and static files in the wheel (broken in 0.1.0 and 0.1.1)
+
 ## 0.1.1
 
 - Fixed ruff formatting across all Python files
