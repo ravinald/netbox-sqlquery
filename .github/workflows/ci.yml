@@ -1,0 +1,133 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+        netbox-version: ["4.0", "4.1"]
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: netbox
+          POSTGRES_PASSWORD: netbox
+          POSTGRES_DB: netbox
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Clone NetBox
+        run: |
+          git clone --branch v${{ matrix.netbox-version }}.0 --depth 1 \
+            https://github.com/netbox-community/netbox.git /opt/netbox
+
+      - name: Install NetBox dependencies
+        run: |
+          cd /opt/netbox
+          pip install -r requirements.txt
+
+      - name: Install plugin
+        run: |
+          pip install -e .
+
+      - name: Configure NetBox
+        run: |
+          cat > /opt/netbox/netbox/netbox/configuration.py << 'CONF'
+          ALLOWED_HOSTS = ['*']
+          DATABASE = {
+              'NAME': 'netbox',
+              'USER': 'netbox',
+              'PASSWORD': 'netbox',
+              'HOST': 'localhost',
+              'PORT': '5432',
+          }
+          REDIS = {
+              'tasks': {'HOST': 'localhost', 'PORT': 6379, 'DATABASE': 0},
+              'caching': {'HOST': 'localhost', 'PORT': 6379, 'DATABASE': 1},
+          }
+          SECRET_KEY = 'test-secret-key-not-for-production'
+          PLUGINS = ['netbox_sqlquery']
+          CONF
+
+      - name: Run migrations
+        run: |
+          cd /opt/netbox/netbox
+          python manage.py migrate --no-input
+
+      - name: Run tests
+        run: |
+          cd /opt/netbox/netbox
+          python manage.py test netbox_sqlquery --no-input
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install ruff
+      - run: ruff check .
+      - run: ruff format --check .
+
+  docker-install-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Clone netbox-docker
+        run: |
+          git clone --depth 1 \
+            https://github.com/netbox-community/netbox-docker.git /tmp/netbox-docker
+
+      - name: Copy plugin docker files
+        run: |
+          cp docker/plugin_requirements.txt /tmp/netbox-docker/
+          cp docker/Dockerfile-Plugins /tmp/netbox-docker/
+          cp docker/docker-compose.override.yml /tmp/netbox-docker/
+
+      - name: Build and start
+        run: |
+          cd /tmp/netbox-docker
+          docker compose build --no-cache
+          docker compose up -d
+          sleep 30
+
+      - name: Check plugin loads
+        run: |
+          STATUS=$(docker compose -f /tmp/netbox-docker/docker-compose.yml \
+            -f /tmp/netbox-docker/docker-compose.override.yml \
+            exec -T netbox curl -s -o /dev/null -w '%{http_code}' \
+            http://localhost:8080/plugins/sqlquery/)
+          echo "HTTP status: $STATUS"
+          [ "$STATUS" = "200" ] || [ "$STATUS" = "302" ] || [ "$STATUS" = "403" ]
+
+      - name: Cleanup
+        if: always()
+        run: |
+          cd /tmp/netbox-docker
+          docker compose down -v

@@ -1,0 +1,54 @@
+{% extends 'base/layout.html' %}
+
+{% block title %}{{ object.name }}{% endblock %}
+
+{% block content %}
+<div class="card mb-3">
+  <div class="card-header">
+    <h5>{{ object.name }}</h5>
+  </div>
+  <div class="card-body">
+    {% if object.description %}
+    <p>{{ object.description }}</p>
+    {% endif %}
+
+    <table class="table table-sm">
+      <tr>
+        <th>Owner</th>
+        <td>{{ object.owner }}</td>
+      </tr>
+      <tr>
+        <th>Visibility</th>
+        <td>{{ object.get_visibility_display }}</td>
+      </tr>
+      <tr>
+        <th>Created</th>
+        <td>{{ object.created }}</td>
+      </tr>
+      <tr>
+        <th>Last run</th>
+        <td>{{ object.last_run|default:"Never" }}</td>
+      </tr>
+      <tr>
+        <th>Run count</th>
+        <td>{{ object.run_count }}</td>
+      </tr>
+    </table>
+
+    <h6>SQL</h6>
+    <pre class="border rounded p-3 bg-light"><code>{{ object.sql }}</code></pre>
+
+    <a href="{% url 'plugins:netbox_sqlquery:query' %}?load={{ object.pk }}" class="btn btn-primary">
+      Load in editor
+    </a>
+    {% if object.owner == request.user or request.user.is_staff and object.visibility == 'global_editable' %}
+    <a href="{% url 'plugins:netbox_sqlquery:savedquery_edit' pk=object.pk %}" class="btn btn-warning">
+      Edit
+    </a>
+    <a href="{% url 'plugins:netbox_sqlquery:savedquery_delete' pk=object.pk %}" class="btn btn-danger">
+      Delete
+    </a>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,323 @@
+{% extends 'base/layout.html' %}
+{% load static %}
+
+{% block title %}SQL Console{% endblock %}
+
+{% block head %}
+<style>
+  .sql-toolbar { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+  .sql-toolbar button { padding: 2px 8px; font-size: 0.85em; font-family: monospace; }
+  .query-layout { display: flex; gap: 16px; align-items: flex-start; }
+  .schema-sidebar {
+    width: 280px; min-width: 280px; max-width: 280px;
+    flex-shrink: 0; flex-grow: 0;
+    font-size: 0.85em;
+    display: flex; flex-direction: column;
+  }
+  .schema-search { margin-bottom: 6px; }
+  .schema-search input {
+    width: 100%; padding: 4px 8px; font-size: 0.85em;
+    border: 1px solid var(--bs-border-color); border-radius: 4px;
+  }
+  .schema-list {
+    height: calc(15 * 1.4em + 8px); overflow-y: auto;
+    border: 1px solid var(--bs-border-color); border-radius: 4px; padding: 4px;
+  }
+  .schema-list details { margin-bottom: 2px; }
+  .schema-list summary { cursor: default; font-weight: bold; font-family: monospace; padding: 2px 0; }
+  .schema-list summary .schema-table { cursor: pointer; }
+  .schema-list summary .schema-table:hover { text-decoration: underline; }
+  .schema-list .col-list { padding-left: 16px; margin: 0; list-style: none; }
+  .schema-list .col-list li { font-family: monospace; cursor: pointer; padding: 1px 4px; }
+  .schema-list .col-list li:hover { background: var(--bs-tertiary-bg); }
+  .col-type { color: var(--bs-secondary); font-size: 0.85em; margin-left: 4px; }
+  .editor-area { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .sql-editor-wrapper {
+    position: relative;
+    /* 14 rows * 1.5 line-height * 0.9em font + 16px padding */
+    height: calc(14 * 1.5em * 0.9 + 16px);
+    border: 1px solid var(--bs-border-color, var(--tblr-border-color, #d1d5db));
+    border-radius: 4px;
+  }
+  .sql-editor-wrapper pre,
+  .sql-editor-wrapper textarea {
+    font-family: monospace !important;
+    font-size: 0.9em !important;
+    padding: 8px !important;
+    margin: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    border: none !important;
+    border-radius: 4px !important;
+    white-space: pre-wrap !important;
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+    line-height: 1.5 !important;
+    tab-size: 2;
+    box-sizing: border-box !important;
+    letter-spacing: normal !important;
+    overflow-y: auto !important;
+  }
+  .sql-editor-wrapper pre {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    background: var(--bs-body-bg, var(--tblr-body-bg, #fff)) !important;
+    overflow: auto;
+    z-index: 0;
+  }
+  .sql-editor-wrapper pre code {
+    font-size: inherit !important;
+    padding: 0 !important;
+    background: none !important;
+    color: inherit;
+  }
+  #sql-editor-wrapper textarea#sql-editor {
+    position: relative;
+    background: transparent !important;
+    color: transparent !important;
+    caret-color: var(--bs-body-color, var(--tblr-body-color, #000));
+    resize: none;
+    z-index: 1;
+  }
+  #sql-editor-wrapper.highlight-off textarea#sql-editor {
+    color: inherit !important;
+    background: var(--bs-body-bg, var(--tblr-body-bg, #fff)) !important;
+  }
+  .sql-editor-wrapper.highlight-off pre { display: none; }
+  .results-pane { margin-top: 16px; overflow-x: auto; }
+  .results-pane table { font-size: 0.85em; }
+  .results-pane th { cursor: pointer; user-select: none; }
+  .results-pane th:hover { opacity: 0.7; }
+  .results-pane th.col-deselected, .results-pane td.col-deselected { opacity: 0.3; text-decoration: line-through; }
+  .results-pane td { cursor: pointer; }
+  .results-pane td:hover { background: var(--bs-primary-bg-subtle) !important; }
+  .results-pane td.cell-filtered { outline: 2px solid var(--bs-primary); outline-offset: -2px; }
+  .results-meta { margin-top: 8px; display: flex; gap: 16px; align-items: center; }
+  .mode-toggle { margin-bottom: 8px; }
+  .mode-toggle .btn { font-size: 0.85em; }
+  .schema-hidden { display: none !important; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="sql-toolbar">
+  {% for kw in "SELECT,FROM,WHERE,JOIN,ON,AND,OR,IN,GROUP BY,ORDER BY,LIMIT,DISTINCT,AS,COUNT(*),IS NULL,IS NOT NULL"|split:"," %}
+    <button type="button" class="btn btn-sm btn-outline-secondary kw-btn" data-keyword="{{ kw }}">{{ kw }}</button>
+  {% endfor %}
+</div>
+
+<div class="query-layout">
+  <div class="schema-sidebar">
+    <div class="mode-toggle btn-group btn-group-sm w-100" role="group">
+      <button type="button" class="btn {% if mode == 'raw' %}btn-primary{% else %}btn-outline-primary{% endif %}" data-mode="raw" title="Query raw database tables directly using their actual PostgreSQL names and columns">Raw SQL</button>
+      <button type="button" class="btn {% if mode == 'abstract' %}btn-primary{% else %}btn-outline-primary{% endif %}" data-mode="abstract" title="Query pre-built views that resolve foreign keys to names and aggregate tags, matching how data appears in the NetBox UI">Views</button>
+    </div>
+
+    <div class="schema-search">
+      <input type="text" id="schema-filter" placeholder="Filter tables/columns...">
+    </div>
+
+    <div class="schema-list">
+      <div id="schema-raw" {% if mode == 'abstract' %}style="display:none"{% endif %}>
+        {% for table_name, columns in raw_schema.items %}
+        <details class="schema-entry" data-table="{{ table_name }}" data-columns="{% for col_name, col_type in columns %}{{ col_name }} {% endfor %}">
+          <summary><span class="schema-table" data-table="{{ table_name }}">{{ table_name }}</span></summary>
+          <ul class="col-list">
+            {% for col_name, col_type in columns %}
+            <li class="schema-col" data-col="{{ col_name }}">
+              {{ col_name }}<span class="col-type">{{ col_type }}</span>
+            </li>
+            {% endfor %}
+          </ul>
+        </details>
+        {% endfor %}
+      </div>
+
+      <div id="schema-abstract" {% if mode == 'raw' %}style="display:none"{% endif %}>
+        {% for table_name, columns in abstract_schema.items %}
+        <details class="schema-entry" data-table="{{ table_name }}" data-columns="{% for col_name, col_type in columns %}{{ col_name }} {% endfor %}">
+          <summary><span class="schema-table" data-table="{{ table_name }}">{{ table_name }}</span></summary>
+          <ul class="col-list">
+            {% for col_name, col_type in columns %}
+            <li class="schema-col" data-col="{{ col_name }}">
+              {{ col_name }}<span class="col-type">{{ col_type }}</span>
+            </li>
+            {% endfor %}
+          </ul>
+        </details>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <div class="editor-area">
+    <form method="post" id="query-form" style="flex:1; display:flex; flex-direction:column;">
+      {% csrf_token %}
+      <input type="hidden" name="mode" id="mode-input" value="{{ mode }}">
+      <input type="hidden" name="confirmed" id="confirmed-input" value="">
+      <div class="sql-editor-wrapper" id="sql-editor-wrapper">
+        <pre id="sql-highlight" aria-hidden="true"><code></code></pre>
+        <textarea id="sql-editor" name="sql" placeholder="SELECT ..." spellcheck="false">{{ sql|default:"" }}</textarea>
+      </div>
+      <div style="margin-top: 8px; display: flex; gap: 8px; align-items: center;">
+        <button type="button" class="btn btn-primary" id="run-query-btn" title="Execute the SQL query (Ctrl+Enter)">
+          Run query
+        </button>
+        <button type="button" class="btn btn-outline-secondary" id="save-query-btn" title="Save the current query for later use">
+          <span class="mdi mdi-content-save"></span> Save
+        </button>
+        <button type="button" class="btn btn-outline-secondary" id="load-query-btn" title="Load a previously saved query">
+          <span class="mdi mdi-folder-open"></span> Load
+        </button>
+        <button type="button" class="btn btn-outline-secondary" id="clear-editor-btn" title="Clear the SQL editor">
+          Clear
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="highlight-toggle" title="Toggle syntax highlighting">
+          <span class="mdi mdi-format-color-highlight"></span>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% if error %}
+<div class="alert alert-danger mt-3">{{ error }}</div>
+{% endif %}
+
+{% if write_result %}
+<div class="alert alert-success mt-3">{{ write_result }}</div>
+{% endif %}
+
+{% if needs_confirm %}
+<div class="modal fade show" id="write-confirm-modal" tabindex="-1" style="display:block; background:rgba(0,0,0,0.5);">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-warning">
+        <h5 class="modal-title">Confirm write query</h5>
+      </div>
+      <div class="modal-body">
+        <p>You are about to execute a write query:</p>
+        <pre class="border rounded p-2 bg-light"><code>{{ sql }}</code></pre>
+        <p class="text-danger fw-bold">This will modify the database. This action cannot be undone.</p>
+        <div class="form-check mt-3">
+          <input class="form-check-input" type="checkbox" id="skip-future-confirm">
+          <label class="form-check-label" for="skip-future-confirm">
+            Don't ask me again (can be reset in User Preferences)
+          </label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="write-cancel-btn">Cancel</button>
+        <button type="button" class="btn btn-danger" id="write-confirm-btn">Execute</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- Save query modal -->
+<div class="modal fade" id="save-query-modal" tabindex="-1" style="display:none;">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Save query</h5>
+        <button type="button" class="btn-close" data-action="close-save"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label" for="save-query-name">Name</label>
+          <input type="text" class="form-control" id="save-query-name" maxlength="100"
+                 pattern="[a-zA-Z0-9][a-zA-Z0-9 _\-\.]*"
+                 placeholder="My query" required>
+          <div class="form-text">Letters, numbers, spaces, hyphens, underscores, and periods only.</div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label" for="save-query-desc">Description (optional)</label>
+          <input type="text" class="form-control" id="save-query-desc" maxlength="256">
+        </div>
+        <div class="mb-3">
+          <label class="form-label" for="save-query-visibility">Visibility</label>
+          <select class="form-select" id="save-query-visibility">
+            <option value="private">Private (only you)</option>
+            <option value="global">Public (read-only for others)</option>
+          </select>
+        </div>
+        <div id="save-query-error" class="alert alert-danger" style="display:none;"></div>
+        <div id="save-query-success" class="alert alert-success" style="display:none;"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-action="close-save">Cancel</button>
+        <button type="button" class="btn btn-primary" id="save-query-confirm">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Load query modal -->
+<div class="modal fade" id="load-query-modal" tabindex="-1" style="display:none;">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Load saved query</h5>
+        <button type="button" class="btn-close" data-action="close-load"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <input type="text" class="form-control" id="load-query-search" placeholder="Search saved queries...">
+        </div>
+        <div id="load-query-list" style="max-height: 400px; overflow-y: auto;">
+          <div class="text-muted text-center py-3">Loading...</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-action="close-load">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if columns %}
+<div class="results-pane">
+  <table class="table table-striped table-hover table-sm">
+    <thead>
+      <tr>
+        {% for col in columns %}
+        <th data-col-index="{{ forloop.counter0 }}" data-col-name="{{ col }}">{{ col }}</th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>
+        {% for cell in row %}
+        <td data-col-index="{{ forloop.counter0 }}">{{ cell }}</td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <div class="results-meta">
+    <span>{{ row_count }} row{{ row_count|pluralize }}</span>
+    <button type="button" class="btn btn-sm btn-outline-secondary" id="csv-download">
+      Download CSV
+    </button>
+  </div>
+</div>
+{% endif %}
+
+<script id="schema-json" type="application/json">
+{{ schema_json|safe }}
+</script>
+<script id="abstract-schema-json" type="application/json">
+{{ abstract_schema_json|safe }}
+</script>
+<script id="highlight-prefs" type="application/json">
+{{ highlight_prefs_json|safe }}
+</script>
+<script id="sqlquery-flags" type="application/json">
+{"is_superuser": {{ is_superuser|yesno:"true,false" }}, "skip_write_confirm": {{ skip_write_confirm|yesno:"true,false" }}}
+</script>
+<script src="{% static 'netbox_sqlquery/editor.js' %}"></script>
+{% endblock %}

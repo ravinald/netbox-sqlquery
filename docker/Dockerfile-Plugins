@@ -1,0 +1,13 @@
+FROM netboxcommunity/netbox:latest
+
+COPY ./plugin_requirements.txt /opt/netbox/
+
+RUN /usr/local/bin/uv pip install -r /opt/netbox/plugin_requirements.txt
+
+# Required -- this plugin has static JS/CSS assets for the editor.
+# The plugins.py config must be present so Django registers the app
+# and collectstatic can find its static files.
+COPY ./configuration/plugins.py /etc/netbox/config/plugins.py
+RUN DEBUG="true" \
+    SECRET_KEY="collectstatic-build-key-not-for-production-use-0123456789" \
+    /opt/netbox/venv/bin/python /opt/netbox/netbox/manage.py collectstatic --no-input
