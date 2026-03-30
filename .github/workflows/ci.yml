@@ -80,15 +80,13 @@ jobs:
         run: |
           cat > /opt/netbox/netbox/netbox/configuration.py << 'CONF'
           ALLOWED_HOSTS = ['*']
-          DATABASES = {
-              'default': {
-                  'ENGINE': 'django.db.backends.postgresql',
-                  'NAME': 'netbox',
-                  'USER': 'netbox',
-                  'PASSWORD': 'netbox',
-                  'HOST': 'localhost',
-                  'PORT': '5432',
-              }
+          DATABASE = {
+              'ENGINE': 'django.db.backends.postgresql',
+              'NAME': 'netbox',
+              'USER': 'netbox',
+              'PASSWORD': 'netbox',
+              'HOST': 'localhost',
+              'PORT': '5432',
           }
           REDIS = {
               'tasks': {'HOST': 'localhost', 'PORT': 6379, 'DATABASE': 0},
