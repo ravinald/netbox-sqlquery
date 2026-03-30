@@ -91,13 +91,14 @@ PLUGINS_CONFIG = {
 Run migrations:
 
 ```bash
-python manage.py migrate netbox_sqlquery
+cd /path/to/netbox
+venv/bin/python netbox/manage.py migrate netbox_sqlquery
 ```
 
 Collect static files:
 
 ```bash
-python manage.py collectstatic --no-input
+venv/bin/python netbox/manage.py collectstatic --no-input
 ```
 
 For Docker-based installations, see [docs/docker.md](docs/docker.md).
