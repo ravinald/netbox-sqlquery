@@ -114,10 +114,33 @@ jobs:
 
       - name: Set up plugin files
         run: |
-          cp docker/plugin_requirements.txt /tmp/netbox-docker/
-          cp docker/Dockerfile-Plugins /tmp/netbox-docker/
-          cp docker/docker-compose.override.yml /tmp/netbox-docker/
           cp -r . /tmp/netbox-docker/netbox-sqlquery
+          # Create Dockerfile that installs from local source
+          cat > /tmp/netbox-docker/Dockerfile-Plugins << 'DOCKERFILE'
+          FROM netboxcommunity/netbox:latest
+          COPY --from=ghcr.io/astral-sh/uv:0.10 /uv /usr/local/bin/
+          COPY ./netbox-sqlquery /opt/netbox-sqlquery
+          RUN /usr/local/bin/uv pip install -e /opt/netbox-sqlquery
+          COPY ./configuration/plugins.py /etc/netbox/config/plugins.py
+          RUN DEBUG="true" \
+              SECRET_KEY="abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnop" \
+              /opt/netbox/venv/bin/python /opt/netbox/netbox/manage.py collectstatic --no-input
+          DOCKERFILE
+          # Create compose override (netbox + worker only, no housekeeping)
+          cat > /tmp/netbox-docker/docker-compose.override.yml << 'YAML'
+          services:
+            netbox:
+              image: netbox:ci-plugins
+              pull_policy: never
+              ports:
+                - 8000:8080
+              build:
+                context: .
+                dockerfile: Dockerfile-Plugins
+            netbox-worker:
+              image: netbox:ci-plugins
+              pull_policy: never
+          YAML
           # Enable the plugin in config
           cat > /tmp/netbox-docker/configuration/plugins.py << 'EOF'
           PLUGINS = ["netbox_sqlquery"]
@@ -132,14 +155,19 @@ jobs:
         run: |
           cd /tmp/netbox-docker
           docker compose up -d
-          # Wait for healthy
-          for i in $(seq 1 30); do
+          # Wait for healthy (up to 5 minutes for first-run migrations)
+          for i in $(seq 1 60); do
             if docker compose ps netbox | grep -q healthy; then
               echo "NetBox is healthy"
               break
             fi
-            echo "Waiting... ($i/30)"
-            sleep 10
+            if [ $i -eq 60 ]; then
+              echo "Timed out waiting for NetBox"
+              docker compose logs netbox | tail -30
+              exit 1
+            fi
+            echo "Waiting... ($i/60)"
+            sleep 5
           done
 
       - name: Verify plugin loads
