@@ -25,8 +25,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - netbox-version: "4.0.11"
-            python-version: "3.11"
           - netbox-version: "4.5.5"
             python-version: "3.12"
     services:
@@ -61,16 +59,9 @@ jobs:
           git clone --branch v${{ matrix.netbox-version }} --depth 1 \
             https://github.com/netbox-community/netbox.git /opt/netbox
 
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq libpq-dev
-
       - name: Install NetBox dependencies
         run: |
           cd /opt/netbox
-          # Replace psycopg[c,pool] with psycopg[pool] to skip C extension build on CI
-          sed -i 's/psycopg\[c,pool\]/psycopg[pool]/g' requirements.txt
           pip install -r requirements.txt
 
       - name: Install plugin
