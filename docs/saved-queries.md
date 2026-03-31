@@ -36,14 +36,37 @@ Clicking a query name shows its details:
 
 ## REST API
 
-The API supports full CRUD operations:
+The API supports full CRUD operations and query execution:
 
 ```
-GET    /api/plugins/sqlquery/saved-queries/
-POST   /api/plugins/sqlquery/saved-queries/
-GET    /api/plugins/sqlquery/saved-queries/{id}/
-PUT    /api/plugins/sqlquery/saved-queries/{id}/
-DELETE /api/plugins/sqlquery/saved-queries/{id}/
+GET    /api/plugins/sqlquery/saved-queries/                List saved queries
+POST   /api/plugins/sqlquery/saved-queries/                Create a saved query
+GET    /api/plugins/sqlquery/saved-queries/{id}/            Retrieve a saved query
+PUT    /api/plugins/sqlquery/saved-queries/{id}/            Update a saved query
+DELETE /api/plugins/sqlquery/saved-queries/{id}/            Delete a saved query
+POST   /api/plugins/sqlquery/saved-queries/{id}/execute/    Execute a saved query
 ```
 
 The API enforces that a user cannot set `owner` to another user. Queries are always created with the requesting user as owner.
+
+### Executing queries via API
+
+Use the `execute` endpoint to run a saved query and get results as JSON:
+
+```bash
+curl -X POST \
+  -H "Authorization: Token <your-token>" \
+  http://localhost/api/plugins/sqlquery/saved-queries/1/execute/
+```
+
+For write queries, include `{"confirmed": true}`:
+
+```bash
+curl -X POST \
+  -H "Authorization: Token <your-token>" \
+  -H "Content-Type: application/json" \
+  -d '{"confirmed": true}' \
+  http://localhost/api/plugins/sqlquery/saved-queries/2/execute/
+```
+
+The response includes `columns`, `rows`, `row_count`, and `truncated` (for read queries) or `rows_affected` (for write queries). The API token must have write access enabled since the endpoint uses POST. See [operations.md](operations.md) for more details.
