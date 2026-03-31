@@ -2,6 +2,7 @@ import csv
 import io
 import json
 import logging
+import re
 
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.db import DatabaseError, connection, transaction
@@ -27,6 +28,7 @@ from .access import (
 from .filtersets import SavedQueryFilterSet
 from .forms import SavedQueryFilterForm, SavedQueryForm
 from .models import SavedQuery
+from .query import execute_read_query, execute_write_query
 from .schema import get_abstract_schema, get_schema
 from .tables import SavedQueryTable
 
@@ -180,55 +182,33 @@ class QueryView(UserPassesTestMixin, TemplateView):
         return self.render_to_response(ctx)
 
     def _execute_read(self, ctx, sql, timeout_ms, max_rows):
-        try:
-            with transaction.atomic():
-                with connection.cursor() as cursor:
-                    cursor.execute(f"SET LOCAL statement_timeout = '{timeout_ms}'")
-                    cursor.execute("SET TRANSACTION READ ONLY")
-                    cursor.execute(sql)
-                    columns = [col[0] for col in cursor.description]
-                    rows = cursor.fetchmany(max_rows + 1)
-                raise _ReadOnlyRollback()
-        except _ReadOnlyRollback:
-            truncated = len(rows) > max_rows
-            if truncated:
-                rows = rows[:max_rows]
+        result = execute_read_query(sql, timeout_ms, max_rows)
+        if result["error"]:
+            ctx["error"] = result["error"]
+        else:
             ctx.update(
-                columns=columns,
-                rows=rows,
-                row_count=len(rows),
-                truncated=truncated,
+                columns=result["columns"],
+                rows=result["rows"],
+                row_count=result["row_count"],
+                truncated=result["truncated"],
                 max_rows=max_rows,
             )
-        except DatabaseError as exc:
-            ctx["error"] = str(exc)
         return ctx
 
     def _execute_write(self, ctx, sql, timeout_ms):
         max_rows = get_plugin_config("netbox_sqlquery", "max_rows")
-        try:
-            # Append RETURNING * if the user didn't include a RETURNING clause
-            exec_sql = sql
-            has_returning = "RETURNING" in sql.upper()
-            normalized = sql.lstrip().upper()
-            if not has_returning and (
-                normalized.startswith("UPDATE") or normalized.startswith("DELETE")
-            ):
-                exec_sql = sql.rstrip().rstrip(";") + " RETURNING *"
-
-            with connection.cursor() as cursor:
-                cursor.execute(f"SET LOCAL statement_timeout = '{timeout_ms}'")
-                cursor.execute(exec_sql)
-                row_count = cursor.rowcount
-
-                if cursor.description:
-                    columns = [col[0] for col in cursor.description]
-                    rows = cursor.fetchmany(max_rows)
-                    ctx.update(columns=columns, rows=rows, row_count=len(rows))
-
-            ctx["write_result"] = f"{row_count} row{'s' if row_count != 1 else ''} affected."
-        except DatabaseError as exc:
-            ctx["error"] = str(exc)
+        result = execute_write_query(sql, timeout_ms, max_rows)
+        if result["error"]:
+            ctx["error"] = result["error"]
+        else:
+            if result["columns"]:
+                ctx.update(
+                    columns=result["columns"],
+                    rows=result["rows"],
+                    row_count=result["row_count"],
+                )
+            affected = result["rows_affected"]
+            ctx["write_result"] = f"{affected} row{'s' if affected != 1 else ''} affected."
         return ctx
 
 
@@ -304,7 +284,6 @@ class SavedQueryAjaxSave(UserPassesTestMixin, View):
             return JsonResponse({"error": "Name must be 100 characters or fewer."}, status=400)
 
         # Validate name against injection
-        import re
 
         if not re.match(r"^[a-zA-Z0-9][a-zA-Z0-9 _\-\.]*$", name):
             return JsonResponse(

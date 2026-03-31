@@ -46,14 +46,52 @@ Removes all `nb_*` views from the database. The Views mode in the sidebar will s
 The plugin provides REST API endpoints for saved query management:
 
 ```
-GET    /api/plugins/sqlquery/saved-queries/        List saved queries
-POST   /api/plugins/sqlquery/saved-queries/        Create a saved query
-GET    /api/plugins/sqlquery/saved-queries/{id}/    Retrieve a saved query
-PUT    /api/plugins/sqlquery/saved-queries/{id}/    Update a saved query
-DELETE /api/plugins/sqlquery/saved-queries/{id}/    Delete a saved query
+GET    /api/plugins/sqlquery/saved-queries/                List saved queries
+POST   /api/plugins/sqlquery/saved-queries/                Create a saved query
+GET    /api/plugins/sqlquery/saved-queries/{id}/            Retrieve a saved query
+PUT    /api/plugins/sqlquery/saved-queries/{id}/            Update a saved query
+DELETE /api/plugins/sqlquery/saved-queries/{id}/            Delete a saved query
+POST   /api/plugins/sqlquery/saved-queries/{id}/execute/    Execute a saved query
 ```
 
 Authentication is required. The list endpoint returns only queries visible to the requesting user (owned queries plus public queries).
+
+### Executing a saved query via API
+
+```bash
+curl -X POST \
+  -H "Authorization: Token <your-token>" \
+  -H "Content-Type: application/json" \
+  http://localhost/api/plugins/sqlquery/saved-queries/1/execute/
+```
+
+Response:
+
+```json
+{
+  "query_name": "Active prefixes",
+  "columns": ["prefix", "status", "vrf"],
+  "rows": [["10.0.0.0/24", "active", "Production"]],
+  "row_count": 1,
+  "truncated": false
+}
+```
+
+For write queries (INSERT/UPDATE/DELETE), include `{"confirmed": true}` in the request body:
+
+```bash
+curl -X POST \
+  -H "Authorization: Token <your-token>" \
+  -H "Content-Type: application/json" \
+  -d '{"confirmed": true}' \
+  http://localhost/api/plugins/sqlquery/saved-queries/2/execute/
+```
+
+Notes:
+- The API token must have write access enabled (POST method is required even for SELECT queries).
+- Table access and write permissions are checked using the token owner's permissions.
+- Results are subject to the same `max_rows` and `statement_timeout_ms` limits as the web console.
+- Every execution is logged and increments the query's run count.
 
 ## Internal AJAX endpoints
 
