@@ -12,7 +12,7 @@ class NetBoxSQLQueryConfig(PluginConfig):
         "SQL query interface for NetBox with syntax highlighting,"
         " abstract views, and role-based access control"
     )
-    version = "0.1.2"
+    version = "0.1.3"
     author = "Ravi Pina"
     author_email = "ravi@pina.org"
     base_url = "sqlquery"
