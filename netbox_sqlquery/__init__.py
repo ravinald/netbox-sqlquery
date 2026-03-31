@@ -16,7 +16,7 @@ class NetBoxSQLQueryConfig(PluginConfig):
     author = "Ravi Pina"
     author_email = "ravi@pina.org"
     base_url = "sqlquery"
-    min_version = "4.0.0"
+    min_version = "4.5.0"
     max_version = None
     required_settings = []
     default_settings = {

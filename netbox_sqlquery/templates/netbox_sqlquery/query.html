@@ -299,10 +299,14 @@
     </tbody>
   </table>
   <div class="results-meta">
-    <span>{{ row_count }} row{{ row_count|pluralize }}</span>
-    <button type="button" class="btn btn-sm btn-outline-secondary" id="csv-download">
-      Download CSV
-    </button>
+    <span>{{ row_count }} row{{ row_count|pluralize }}{% if truncated %} <span class="text-warning">(limited to {{ max_rows }} -- add LIMIT/OFFSET to page through results)</span>{% endif %}</span>
+    <form method="post" action="{% url 'plugins:netbox_sqlquery:export_csv' %}" style="display:inline;">
+      {% csrf_token %}
+      <input type="hidden" name="sql" value="{{ sql }}">
+      <button type="submit" class="btn btn-sm btn-outline-secondary" title="Download all results as CSV (no row limit)">
+        Download CSV
+      </button>
+    </form>
   </div>
 </div>
 {% endif %}

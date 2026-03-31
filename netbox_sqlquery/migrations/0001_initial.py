@@ -8,8 +8,8 @@ class Migration(migrations.Migration):
 
     dependencies = [
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-        ("auth", "0012_alter_user_first_name_max_length"),
         ("extras", "0001_initial"),
+        ("users", "0001_squashed_0011"),
     ]
 
     operations = [
@@ -85,7 +85,7 @@ class Migration(migrations.Migration):
                 ("require_staff", models.BooleanField(default=False)),
                 ("require_superuser", models.BooleanField(default=False)),
                 ("allow", models.BooleanField(default=True)),
-                ("groups", models.ManyToManyField(blank=True, to="auth.group")),
+                ("groups", models.ManyToManyField(blank=True, to="users.group")),
             ],
             options={
                 "ordering": ["-require_superuser", "-require_staff", "pattern"],

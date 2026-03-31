@@ -60,7 +60,7 @@ See [COMPATIBILITY.md](COMPATIBILITY.md) for the full version matrix.
 
 | NetBox version | Python versions              |
 |----------------|------------------------------|
-| 4.0 - 4.5      | 3.10, 3.11, 3.12, 3.13, 3.14 |
+| 4.5+            | 3.12, 3.13, 3.14             |
 
 ## Installation
 

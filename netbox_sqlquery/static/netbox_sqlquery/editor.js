@@ -552,33 +552,7 @@
   });
 
 
-  // CSV download
-  var csvBtn = document.getElementById("csv-download");
-  if (csvBtn) {
-    csvBtn.addEventListener("click", function () {
-      var table = document.querySelector(".results-pane table");
-      if (!table) return;
-      var rows = [];
-      table.querySelectorAll("tr").forEach(function (tr) {
-        var cells = [];
-        tr.querySelectorAll("th, td").forEach(function (cell) {
-          var text = cell.textContent;
-          if (text.includes(",") || text.includes('"') || text.includes("\n")) {
-            text = '"' + text.replace(/"/g, '""') + '"';
-          }
-          cells.push(text);
-        });
-        rows.push(cells.join(","));
-      });
-      var blob = new Blob([rows.join("\n")], { type: "text/csv" });
-      var url = URL.createObjectURL(blob);
-      var a = document.createElement("a");
-      a.href = url;
-      a.download = "query_results.csv";
-      a.click();
-      URL.revokeObjectURL(url);
-    });
-  }
+  // CSV download is now a server-side form POST (no JS needed)
 
   function insertAtCursor(text) {
     var start = editor.selectionStart;

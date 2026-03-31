@@ -1,9 +1,11 @@
+import csv
+import io
 import json
 import logging
 
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.db import DatabaseError, connection, transaction
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.views import View
 from django.views.generic import TemplateView
 from netbox.plugins import get_plugin_config
@@ -185,10 +187,19 @@ class QueryView(UserPassesTestMixin, TemplateView):
                     cursor.execute("SET TRANSACTION READ ONLY")
                     cursor.execute(sql)
                     columns = [col[0] for col in cursor.description]
-                    rows = cursor.fetchmany(max_rows)
+                    rows = cursor.fetchmany(max_rows + 1)
                 raise _ReadOnlyRollback()
         except _ReadOnlyRollback:
-            ctx.update(columns=columns, rows=rows, row_count=len(rows))
+            truncated = len(rows) > max_rows
+            if truncated:
+                rows = rows[:max_rows]
+            ctx.update(
+                columns=columns,
+                rows=rows,
+                row_count=len(rows),
+                truncated=truncated,
+                max_rows=max_rows,
+            )
         except DatabaseError as exc:
             ctx["error"] = str(exc)
         return ctx
@@ -351,3 +362,57 @@ class SavedQueryAjaxList(UserPassesTestMixin, View):
                 ]
             }
         )
+
+
+class CSVExportView(UserPassesTestMixin, View):
+    """Export query results as CSV with no row limit."""
+
+    def test_func(self):
+        user = self.request.user
+        if not user.is_active:
+            return False
+        if user.is_superuser:
+            return True
+        if get_plugin_config("netbox_sqlquery", "require_superuser"):
+            return False
+        return user.has_perm("netbox_sqlquery.view_querypermission")
+
+    def post(self, request):
+        sql = request.POST.get("sql", "").strip()
+        if not sql:
+            return HttpResponse("No SQL provided.", status=400)
+
+        normalized = sql.lstrip().upper()
+        if not (normalized.startswith("SELECT") or normalized.startswith("WITH")):
+            return HttpResponse("Only SELECT queries can be exported.", status=400)
+
+        denied = check_access(request.user, extract_tables(sql))
+        if denied:
+            return HttpResponse(f"Access denied to: {', '.join(sorted(denied))}", status=403)
+
+        timeout_ms = get_plugin_config("netbox_sqlquery", "statement_timeout_ms")
+
+        try:
+            with transaction.atomic():
+                with connection.cursor() as cursor:
+                    cursor.execute(f"SET LOCAL statement_timeout = '{timeout_ms}'")
+                    cursor.execute("SET TRANSACTION READ ONLY")
+                    cursor.execute(sql)
+                    columns = [col[0] for col in cursor.description]
+                    rows = cursor.fetchall()
+                raise _ReadOnlyRollback()
+        except _ReadOnlyRollback:
+            pass
+        except DatabaseError as exc:
+            return HttpResponse(f"Query error: {exc}", status=400)
+
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(columns)
+        writer.writerows(rows)
+
+        response = HttpResponse(output.getvalue(), content_type="text/csv")
+        response["Content-Disposition"] = 'attachment; filename="query_results.csv"'
+
+        _record_query(request.user, sql)
+        return response

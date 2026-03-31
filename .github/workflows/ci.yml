@@ -25,8 +25,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - netbox-version: "4.0.11"
-            python-version: "3.11"
           - netbox-version: "4.5.5"
             python-version: "3.12"
     services:
@@ -73,15 +71,13 @@ jobs:
         run: |
           cat > /opt/netbox/netbox/netbox/configuration.py << 'CONF'
           ALLOWED_HOSTS = ['*']
-          DATABASES = {
-              'default': {
-                  'ENGINE': 'django.db.backends.postgresql',
-                  'NAME': 'netbox',
-                  'USER': 'netbox',
-                  'PASSWORD': 'netbox',
-                  'HOST': 'localhost',
-                  'PORT': '5432',
-              }
+          DATABASE = {
+              'ENGINE': 'django.db.backends.postgresql',
+              'NAME': 'netbox',
+              'USER': 'netbox',
+              'PASSWORD': 'netbox',
+              'HOST': 'localhost',
+              'PORT': '5432',
           }
           REDIS = {
               'tasks': {'HOST': 'localhost', 'PORT': 6379, 'DATABASE': 0},
@@ -126,7 +122,7 @@ jobs:
               SECRET_KEY="abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnop" \
               /opt/netbox/venv/bin/python /opt/netbox/netbox/manage.py collectstatic --no-input
           DOCKERFILE
-          # Create compose override (netbox + worker only, no housekeeping)
+          # Create compose override (netbox only, no worker needed for CI)
           cat > /tmp/netbox-docker/docker-compose.override.yml << 'YAML'
           services:
             netbox:
@@ -137,9 +133,15 @@ jobs:
               build:
                 context: .
                 dockerfile: Dockerfile-Plugins
+              healthcheck:
+                test: curl -f http://localhost:8080/login/ || exit 1
+                start_period: 300s
+                timeout: 5s
+                interval: 15s
             netbox-worker:
               image: netbox:ci-plugins
               pull_policy: never
+              profiles: ["worker"]
           YAML
           # Enable the plugin in config
           cat > /tmp/netbox-docker/configuration/plugins.py << 'EOF'
@@ -154,27 +156,25 @@ jobs:
       - name: Start stack
         run: |
           cd /tmp/netbox-docker
-          docker compose up -d
-          # Wait for healthy (up to 5 minutes for first-run migrations)
-          for i in $(seq 1 60); do
-            if docker compose ps netbox | grep -q healthy; then
-              echo "NetBox is healthy"
+          docker compose up -d netbox postgres redis redis-cache
+          # Wait for NetBox to respond (up to 8 minutes for first-run migrations)
+          for i in $(seq 1 96); do
+            if curl -sf http://localhost:8000/login/ > /dev/null 2>&1; then
+              echo "NetBox is responding"
               break
             fi
-            if [ $i -eq 60 ]; then
+            if [ $i -eq 96 ]; then
               echo "Timed out waiting for NetBox"
-              docker compose logs netbox | tail -30
+              docker compose logs netbox | tail -50
               exit 1
             fi
-            echo "Waiting... ($i/60)"
+            echo "Waiting... ($i/96)"
             sleep 5
           done
 
       - name: Verify plugin loads
         run: |
-          cd /tmp/netbox-docker
-          STATUS=$(docker compose exec -T netbox curl -s -o /dev/null -w '%{http_code}' \
-            http://localhost:8080/plugins/sqlquery/)
+          STATUS=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8000/plugins/sqlquery/)
           echo "HTTP status: $STATUS"
           [ "$STATUS" = "200" ] || [ "$STATUS" = "302" ] || [ "$STATUS" = "403" ]
 
