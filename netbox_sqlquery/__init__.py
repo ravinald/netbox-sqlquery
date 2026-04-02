@@ -1,13 +1,8 @@
 import logging
-import sys
 
 from netbox.plugins import PluginConfig
 
 logger = logging.getLogger("netbox_sqlquery")
-
-# Management commands that modify schema — creating views during these
-# can block migrations when a view depends on a column being altered.
-_SKIP_VIEWS_COMMANDS = {"migrate", "makemigrations"}
 
 
 class NetBoxSQLQueryConfig(PluginConfig):
@@ -17,7 +12,7 @@ class NetBoxSQLQueryConfig(PluginConfig):
         "SQL query interface for NetBox with syntax highlighting,"
         " abstract views, and role-based access control"
     )
-    version = "0.1.5"
+    version = "0.1.6"
     author = "Ravi Pina"
     author_email = "ravi@pina.org"
     base_url = "sqlquery"
@@ -46,18 +41,31 @@ class NetBoxSQLQueryConfig(PluginConfig):
         # Register navigation based on top_level_menu setting
         self._register_navigation()
 
-        # Hook post_migrate so views are (re)created after schema changes.
-        from django.db.models.signals import post_migrate
+        # Drop views before migrations so PostgreSQL can alter columns
+        # that the views depend on. Recreate them after migrations
+        # complete against the new schema. The views are read-only
+        # projections and contain no data, so this is always safe.
+        from django.db.models.signals import pre_migrate, post_migrate
 
+        pre_migrate.connect(self._drop_views, sender=self)
         post_migrate.connect(self._create_views, sender=self)
 
         # For normal app startup (gunicorn/uvicorn), create views directly.
-        # Skip during management commands that modify schema — views that
-        # reference columns being altered will cause PostgreSQL to reject
-        # the migration with "cannot alter type of a column used by a view".
-        running_command = sys.argv[1] if len(sys.argv) > 1 else None
-        if running_command not in _SKIP_VIEWS_COMMANDS:
-            self._create_views(sender=self)
+        self._create_views(sender=self)
+
+    @staticmethod
+    def _drop_views(sender, **kwargs):
+        try:
+            from .abstract_schema import drop_views
+
+            dropped = drop_views()
+            if dropped:
+                logger.info(
+                    "Dropped %d abstract SQL view(s) before migration.",
+                    len(dropped),
+                )
+        except Exception as exc:
+            logger.warning("Could not drop abstract SQL views: %s", exc)
 
     @staticmethod
     def _create_views(sender, **kwargs):
