@@ -45,7 +45,7 @@ class NetBoxSQLQueryConfig(PluginConfig):
         # that the views depend on. Recreate them after migrations
         # complete against the new schema. The views are read-only
         # projections and contain no data, so this is always safe.
-        from django.db.models.signals import pre_migrate, post_migrate
+        from django.db.models.signals import post_migrate, pre_migrate
 
         pre_migrate.connect(self._drop_views, sender=self)
         post_migrate.connect(self._create_views, sender=self)
