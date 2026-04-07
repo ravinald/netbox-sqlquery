@@ -12,7 +12,7 @@ class NetBoxSQLQueryConfig(PluginConfig):
         "SQL query interface for NetBox with syntax highlighting,"
         " abstract views, and role-based access control"
     )
-    version = "0.1.6"
+    version = "0.1.7"
     author = "Ravi Pina"
     author_email = "ravi@pina.org"
     base_url = "sqlquery"
@@ -48,9 +48,10 @@ class NetBoxSQLQueryConfig(PluginConfig):
         from django.db.models.signals import post_migrate, pre_migrate
 
         pre_migrate.connect(self._drop_views, sender=self)
-        post_migrate.connect(self._create_views, sender=self)
+        post_migrate.connect(self._create_views_forced, sender=self)
 
-        # For normal app startup (gunicorn/uvicorn), create views directly.
+        # For normal app startup (gunicorn/uvicorn), skip expensive view
+        # creation if views already exist — just populate the table map.
         self._create_views(sender=self)
 
     @staticmethod
@@ -69,14 +70,29 @@ class NetBoxSQLQueryConfig(PluginConfig):
 
     @staticmethod
     def _create_views(sender, **kwargs):
+        """Normal startup — skips creation if views already exist."""
         try:
             from .abstract_schema import ensure_views
 
-            ensure_views()
+            ensure_views()  # force=False: fast path when views exist
         except Exception as exc:
             logger.warning(
                 "Could not create abstract SQL views: %s. "
                 "Run 'manage.py sqlquery_create_views' manually.",
+                exc,
+            )
+
+    @staticmethod
+    def _create_views_forced(sender, **kwargs):
+        """Post-migrate — always rebuild views against the new schema."""
+        try:
+            from .abstract_schema import ensure_views
+
+            ensure_views(force=True)
+        except Exception as exc:
+            logger.warning(
+                "Could not create abstract SQL views after migration: %s. "
+                "Run 'manage.py sqlquery_create_views --force' manually.",
                 exc,
             )
 

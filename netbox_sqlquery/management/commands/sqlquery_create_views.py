@@ -17,6 +17,11 @@ class Command(BaseCommand):
             action="store_true",
             help="Drop all nb_* views instead of creating them",
         )
+        parser.add_argument(
+            "--force",
+            action="store_true",
+            help="Rebuild views even if they already exist",
+        )
 
     def handle(self, *args, **options):
         if options["drop"]:
@@ -26,7 +31,10 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS(f"Dropped {len(dropped)} views"))
             return
 
-        results = ensure_views(dry_run=options["dry_run"])
+        results = ensure_views(
+            dry_run=options["dry_run"],
+            force=options["force"] or options["dry_run"],
+        )
 
         for view_name, sql in results:
             if options["dry_run"]:

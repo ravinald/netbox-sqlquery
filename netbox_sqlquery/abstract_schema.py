@@ -136,6 +136,30 @@ COLUMN_RENAMES = {
 ABSTRACT_TO_TABLES = {}
 
 
+def _views_exist():
+    """Fast check: do any nb_* abstract views exist in the database?"""
+    with connection.cursor() as cursor:
+        cursor.execute("""
+            SELECT 1 FROM information_schema.views
+            WHERE table_schema = 'public' AND table_name LIKE 'nb\\_%'
+            LIMIT 1
+        """)
+        return cursor.fetchone() is not None
+
+
+def _populate_table_map():
+    """Populate ABSTRACT_TO_TABLES from model metadata without FK introspection.
+
+    Used on normal startup when views already exist — avoids the expensive
+    information_schema queries that block gunicorn workers.
+    """
+    ABSTRACT_TO_TABLES.clear()
+    for model in get_included_models():
+        table_name = model._meta.db_table
+        view_name = VIEW_NAME_OVERRIDES.get(table_name, f"nb_{table_name}")
+        ABSTRACT_TO_TABLES[view_name] = {table_name}
+
+
 def _get_view_name(model):
     """Generate the nb_* view name for a model."""
     label = f"{model._meta.app_label}.{model._meta.model_name}"
@@ -165,6 +189,7 @@ def _get_table_columns(table_name):
 def _get_fk_map(table_name):
     """Get FK column -> target table mapping from information_schema."""
     with connection.cursor() as cursor:
+        cursor.execute("SET LOCAL statement_timeout = '30s'")
         cursor.execute(
             """
             SELECT kcu.column_name, ccu.table_name
@@ -366,8 +391,19 @@ def get_included_models():
     return models
 
 
-def ensure_views(dry_run=False):
-    """Create or replace all abstract views. Returns list of (view_name, sql) tuples."""
+def ensure_views(dry_run=False, force=False):
+    """Create or replace all abstract views. Returns list of (view_name, sql) tuples.
+
+    When *force* is False (the default) and views already exist in the database,
+    skips the expensive FK introspection and DDL — only populates the in-process
+    ABSTRACT_TO_TABLES map from model metadata.  Pass *force=True* after
+    migrations or when views need to be rebuilt.
+    """
+    if not force and not dry_run and _views_exist():
+        logger.debug("Abstract views already exist; skipping creation.")
+        _populate_table_map()
+        return []
+
     results = []
     ABSTRACT_TO_TABLES.clear()
 
