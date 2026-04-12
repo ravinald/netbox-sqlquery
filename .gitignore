@@ -25,3 +25,4 @@ Thumbs.db
 # NetBox
 local_requirements.txt
 configuration.py
+scripts/netbox_schema.txt

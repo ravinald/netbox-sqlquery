@@ -29,6 +29,15 @@ class NetBoxSQLQueryConfig(PluginConfig):
             "users_userconfig",
         ],
         "top_level_menu": False,
+        "ai_enabled": False,
+        "ai_provider": "openai",
+        "ai_model": "",
+        "ai_base_url": "",
+        "ai_api_key": "",
+        "ai_temperature": 0.0,
+        "ai_max_tokens": 1024,
+        "ai_timeout": 30,
+        "ai_system_context": "",
     }
 
     # Suppress auto-loading; we register navigation conditionally in ready()

@@ -134,6 +134,9 @@ class QueryView(UserPassesTestMixin, TemplateView):
             user_config.get("plugins.netbox_sqlquery.skip_write_confirm", "off") == "on"
         )
 
+        # AI query support
+        ctx["ai_enabled"] = get_plugin_config("netbox_sqlquery", "ai_enabled")
+
         return ctx
 
     def post(self, request):
@@ -395,3 +398,92 @@ class CSVExportView(UserPassesTestMixin, View):
 
         _record_query(request.user, sql)
         return response
+
+
+class NLQueryAjaxView(UserPassesTestMixin, View):
+    """AJAX endpoint for natural language to SQL query generation."""
+
+    def test_func(self):
+        user = self.request.user
+        if not user.is_active:
+            return False
+        if user.is_superuser:
+            return True
+        if get_plugin_config("netbox_sqlquery", "require_superuser"):
+            return False
+        return user.has_perm("netbox_sqlquery.view_querypermission")
+
+    def post(self, request):
+        if not get_plugin_config("netbox_sqlquery", "ai_enabled"):
+            return JsonResponse({"error": "AI queries are not enabled."}, status=400)
+
+        try:
+            data = json.loads(request.body)
+        except json.JSONDecodeError:
+            return JsonResponse({"error": "Invalid JSON."}, status=400)
+
+        nl_input = (data.get("query") or "").strip()
+        if not nl_input:
+            return JsonResponse({"error": "No query provided."}, status=400)
+
+        from .llm import MAX_NL_INPUT_LENGTH
+
+        if len(nl_input) > MAX_NL_INPUT_LENGTH:
+            return JsonResponse(
+                {"error": f"Input exceeds {MAX_NL_INPUT_LENGTH} character limit."},
+                status=400,
+            )
+
+        # Generate SQL from natural language
+        from .llm import generate_sql
+
+        try:
+            generated_sql = generate_sql(nl_input, request.user)
+        except Exception as exc:
+            logger.warning("AI query generation failed: %s", exc)
+            return JsonResponse({"error": f"AI generation failed: {exc}"}, status=500)
+
+        if not generated_sql:
+            return JsonResponse({"error": "AI did not generate a query."}, status=400)
+
+        # Validate: must be SELECT/WITH only
+        normalized = generated_sql.lstrip().upper()
+        if not (normalized.startswith("SELECT") or normalized.startswith("WITH")):
+            return JsonResponse(
+                {
+                    "sql": generated_sql,
+                    "error": "AI generated a non-SELECT query, which is not allowed.",
+                },
+                status=400,
+            )
+
+        # Access control (same as QueryView.post)
+        denied = check_access(request.user, extract_tables(generated_sql))
+        if denied:
+            return JsonResponse(
+                {
+                    "sql": generated_sql,
+                    "error": f"Access denied to: {', '.join(sorted(denied))}",
+                },
+                status=403,
+            )
+
+        # Execute through existing read-only path
+        max_rows = get_plugin_config("netbox_sqlquery", "max_rows")
+        timeout_ms = get_plugin_config("netbox_sqlquery", "statement_timeout_ms")
+        result = execute_read_query(generated_sql, timeout_ms, max_rows)
+
+        _record_query(request.user, generated_sql)
+
+        if result["error"]:
+            return JsonResponse({"sql": generated_sql, "error": result["error"]}, status=400)
+
+        return JsonResponse(
+            {
+                "sql": generated_sql,
+                "columns": result["columns"],
+                "rows": result["rows"],
+                "row_count": result["row_count"],
+                "truncated": result["truncated"],
+            }
+        )
