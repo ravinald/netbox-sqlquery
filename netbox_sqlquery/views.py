@@ -434,11 +434,17 @@ class NLQueryAjaxView(UserPassesTestMixin, View):
                 status=400,
             )
 
-        # Generate SQL from natural language
-        from .llm import generate_sql
-
+        # Generate SQL: tool-calling agent loop by default, one-shot as fallback.
+        mode = get_plugin_config("netbox_sqlquery", "ai_mode")
         try:
-            generated_sql = generate_sql(nl_input, request.user)
+            if mode == "oneshot":
+                from .llm import generate_sql
+
+                generated_sql = generate_sql(nl_input, request.user)
+            else:
+                from .nl_agent import generate_sql_agentic
+
+                generated_sql = generate_sql_agentic(nl_input, request.user)
         except Exception as exc:
             logger.warning("AI query generation failed: %s", exc)
             return JsonResponse({"error": f"AI generation failed: {exc}"}, status=500)
@@ -446,9 +452,10 @@ class NLQueryAjaxView(UserPassesTestMixin, View):
         if not generated_sql:
             return JsonResponse({"error": "AI did not generate a query."}, status=400)
 
-        # Validate: must be SELECT/WITH only
-        normalized = generated_sql.lstrip().upper()
-        if not (normalized.startswith("SELECT") or normalized.startswith("WITH")):
+        # Validate: must be a single read-only SELECT/WITH (AST-backed).
+        from .sqlvalidate import is_read_only_select
+
+        if not is_read_only_select(generated_sql):
             return JsonResponse(
                 {
                     "sql": generated_sql,
@@ -477,6 +484,11 @@ class NLQueryAjaxView(UserPassesTestMixin, View):
 
         if result["error"]:
             return JsonResponse({"sql": generated_sql, "error": result["error"]}, status=400)
+
+        # Record the accepted NL->SQL pair so few-shot retrieval improves over time.
+        from .nl_agent import record_example
+
+        record_example(request.user, nl_input, generated_sql)
 
         return JsonResponse(
             {

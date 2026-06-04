@@ -1,10 +1,22 @@
 #!/usr/bin/env bash
-# test_llm_query.sh - Test LLM query generation outside of NetBox
+# test_llm_query.sh - Smoke-test raw one-shot LLM SQL generation outside NetBox
 #
 # Usage:
 #   ./scripts/test_llm_query.sh "show me all virtual machines"
 #   ./scripts/test_llm_query.sh "list private IPs in usw2" http://localhost:11434
 #   ./scripts/test_llm_query.sh "list VMs" http://localhost:11434 llama3.1:8b
+#
+# This exercises the LEGACY one-shot path (single /api/chat call against a static
+# schema dump). It is a connectivity/model smoke test only.
+#
+# The default path is now the tool-calling AGENT loop, which needs the database
+# (list_tables/describe_table/lookup_values/run_sql_dry all run permission-checked
+# queries). Test that inside NetBox with the management command, which prints the
+# generated SQL for a given user:
+#
+#   manage.py sqlquery_nl "show me all virtual machines"
+#   manage.py sqlquery_nl "devices in NYC missing a primary IP" --user alice
+#   manage.py sqlquery_nl "list VMs" --oneshot   # force the legacy path
 #
 # Uses the same schema and system prompt as the plugin so results match
 # what you'd get in the NetBox UI.

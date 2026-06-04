@@ -38,6 +38,13 @@ class NetBoxSQLQueryConfig(PluginConfig):
         "ai_max_tokens": 1024,
         "ai_timeout": 30,
         "ai_system_context": "",
+        # Tool-calling agent loop (vs. one-shot text-to-SQL).
+        "ai_mode": "agent",  # "agent" or "oneshot"
+        "ai_max_iterations": 5,
+        "ai_dry_run_limit": 20,
+        # Few-shot retrieval from saved/accepted queries.
+        "ai_fewshot_k": 3,
+        "ai_fewshot_embeddings": False,
     }
 
     # Suppress auto-loading; we register navigation conditionally in ready()
