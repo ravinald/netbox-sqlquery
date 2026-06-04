@@ -26,3 +26,6 @@ Thumbs.db
 local_requirements.txt
 configuration.py
 scripts/netbox_schema.txt
+
+# Dev-only internal docs (never tracked)
+docs-internal/
