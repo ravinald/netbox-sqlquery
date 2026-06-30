@@ -15,6 +15,7 @@ SCHEMA = {
 
 PLUGIN_CONFIG = {
     "netbox_sqlquery": {
+        "deny_tables": ["auth_user", "users_token", "users_userconfig"],
         "ai_model": "test-model",
         "ai_max_iterations": 5,
         "ai_dry_run_limit": 20,

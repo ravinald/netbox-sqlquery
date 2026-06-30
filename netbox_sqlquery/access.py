@@ -200,7 +200,7 @@ def check_access(user, tables):
 
 
 def _hard_denies(tables):
-    deny_list = set(get_plugin_config("netbox_sqlquery", "deny_tables"))
+    deny_list = set(get_plugin_config("netbox_sqlquery", "deny_tables") or [])
     return tables & deny_list
 
 
@@ -234,7 +234,7 @@ def _allowed_tables(user):
 
 
 def _hard_denies_set():
-    return set(get_plugin_config("netbox_sqlquery", "deny_tables"))
+    return set(get_plugin_config("netbox_sqlquery", "deny_tables") or [])
 
 
 def can_execute_write(user):
