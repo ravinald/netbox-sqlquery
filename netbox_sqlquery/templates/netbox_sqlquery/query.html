@@ -98,6 +98,11 @@
   .mode-toggle { margin-bottom: 8px; }
   .mode-toggle .btn { font-size: 0.85em; }
   .schema-hidden { display: none !important; }
+  #run-query-btn.btn-ai { background-color: #7c3aed; border-color: #7c3aed; }
+  #run-query-btn.btn-ai:hover { background-color: #6d28d9; border-color: #6d28d9; }
+  #run-query-btn.btn-thinking { opacity: 0.7; pointer-events: none; }
+  @keyframes ai-pulse { 0%, 100% { opacity: 0.7; } 50% { opacity: 1; } }
+  #run-query-btn.btn-thinking { animation: ai-pulse 1.5s ease-in-out infinite; }
 </style>
 {% endblock %}
 
@@ -183,8 +188,9 @@
 </div>
 
 {% if error %}
-<div class="alert alert-danger mt-3">{{ error }}</div>
+<div class="alert alert-danger mt-3" id="server-error">{{ error }}</div>
 {% endif %}
+<div id="ai-error" class="alert alert-danger mt-3" style="display:none;"></div>
 
 {% if write_result %}
 <div class="alert alert-success mt-3">{{ write_result }}</div>
@@ -310,6 +316,7 @@
   </div>
 </div>
 {% endif %}
+<div id="ai-results"></div>
 
 <script id="schema-json" type="application/json">
 {{ schema_json|safe }}
@@ -321,7 +328,7 @@
 {{ highlight_prefs_json|safe }}
 </script>
 <script id="sqlquery-flags" type="application/json">
-{"is_superuser": {{ is_superuser|yesno:"true,false" }}, "skip_write_confirm": {{ skip_write_confirm|yesno:"true,false" }}}
+{"is_superuser": {{ is_superuser|yesno:"true,false" }}, "skip_write_confirm": {{ skip_write_confirm|yesno:"true,false" }}, "ai_enabled": {{ ai_enabled|yesno:"true,false" }}}
 </script>
 <script src="{% static 'netbox_sqlquery/editor.js' %}"></script>
 {% endblock %}

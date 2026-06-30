@@ -20,4 +20,5 @@ urlpatterns = [
     path("ajax/save-query/", views.SavedQueryAjaxSave.as_view(), name="ajax_save_query"),
     path("ajax/list-queries/", views.SavedQueryAjaxList.as_view(), name="ajax_list_queries"),
     path("export-csv/", views.CSVExportView.as_view(), name="export_csv"),
+    path("ajax/ai-query/", views.NLQueryAjaxView.as_view(), name="ajax_ai_query"),
 ]

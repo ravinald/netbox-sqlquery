@@ -194,6 +194,7 @@
   editor.addEventListener("input", function () {
     autoUppercase();
     syncHighlight();
+    updateRunButton();
   });
   editor.addEventListener("scroll", function () {
     if (highlightPre) {
@@ -275,6 +276,7 @@
 
   // --- Write query confirmation ---
   var WRITE_PREFIXES = ["INSERT", "UPDATE", "DELETE"];
+  var SQL_PREFIXES = ["SELECT", "WITH", "INSERT", "UPDATE", "DELETE"];
   var confirmedInput = document.getElementById("confirmed-input");
 
   function isWriteQuery(sql) {
@@ -285,7 +287,169 @@
     return false;
   }
 
+  function looksLikeSQL(text) {
+    var upper = text.trimStart().toUpperCase();
+    for (var i = 0; i < SQL_PREFIXES.length; i++) {
+      if (upper.indexOf(SQL_PREFIXES[i]) === 0) return true;
+    }
+    return false;
+  }
+
+  // --- Dynamic button text ---
+  var runBtn = document.getElementById("run-query-btn");
+
+  function updateRunButton() {
+    if (!runBtn || !sqlFlags.ai_enabled) return;
+    var text = editor.value.trim();
+    if (!text || looksLikeSQL(text)) {
+      runBtn.textContent = "Run SQL query";
+      runBtn.classList.remove("btn-ai");
+      runBtn.title = "Execute the SQL query (Ctrl+Enter)";
+    } else {
+      runBtn.textContent = "Run AI query";
+      runBtn.classList.add("btn-ai");
+      runBtn.title = "Generate SQL from natural language (Ctrl+Enter)";
+    }
+  }
+
+  // --- AI query support ---
+  var aiErrorEl = document.getElementById("ai-error");
+  var aiResultsEl = document.getElementById("ai-results");
+
+  function showAIError(message) {
+    if (aiErrorEl) {
+      aiErrorEl.textContent = message;
+      aiErrorEl.style.display = "block";
+    }
+  }
+
+  function clearAIResults() {
+    if (aiErrorEl) aiErrorEl.style.display = "none";
+    if (aiResultsEl) aiResultsEl.innerHTML = "";
+    // Also hide server-rendered error/results on new AI query
+    var serverErr = document.getElementById("server-error");
+    if (serverErr) serverErr.style.display = "none";
+    var serverResults = document.querySelector(".results-pane");
+    if (serverResults) serverResults.style.display = "none";
+  }
+
+  function renderResults(data) {
+    if (!aiResultsEl) return;
+    var html = '<div class="results-pane" style="margin-top:16px; overflow-x:auto;">';
+    html += '<table class="table table-striped table-hover table-sm"><thead><tr>';
+    for (var c = 0; c < data.columns.length; c++) {
+      html += '<th data-col-index="' + c + '" data-col-name="' + escapeHTML(data.columns[c]) + '">' + escapeHTML(data.columns[c]) + '</th>';
+    }
+    html += '</tr></thead><tbody>';
+    for (var r = 0; r < data.rows.length; r++) {
+      html += '<tr>';
+      for (var c = 0; c < data.rows[r].length; c++) {
+        var val = data.rows[r][c];
+        var display = val === null ? "None" : String(val);
+        html += '<td data-col-index="' + c + '">' + escapeHTML(display) + '</td>';
+      }
+      html += '</tr>';
+    }
+    html += '</tbody></table>';
+    html += '<div class="results-meta"><span>' + data.row_count + ' row' + (data.row_count !== 1 ? 's' : '');
+    if (data.truncated) {
+      html += ' <span class="text-warning">(results truncated -- add LIMIT/OFFSET to page through results)</span>';
+    }
+    html += '</span>';
+    // CSV export form for AI-generated SQL
+    html += '<form method="post" action="/plugins/sqlquery/export-csv/" style="display:inline;">';
+    html += '<input type="hidden" name="csrfmiddlewaretoken" value="' + document.querySelector("[name=csrfmiddlewaretoken]").value + '">';
+    html += '<input type="hidden" name="sql" value="' + escapeHTML(data.sql || editor.value) + '">';
+    html += '<button type="submit" class="btn btn-sm btn-outline-secondary" title="Download all results as CSV (no row limit)">Download CSV</button>';
+    html += '</form></div></div>';
+    aiResultsEl.innerHTML = html;
+
+    // Bind interactive handlers on AI results
+    bindColumnToggle(aiResultsEl);
+    bindCellClickHandlers(aiResultsEl);
+  }
+
+  function bindCellClickHandlers(container) {
+    container.querySelectorAll(".results-pane td[data-col-index]").forEach(function (td) {
+      td.addEventListener("click", function () {
+        var idx = td.dataset.colIndex;
+        var th = container.querySelector('.results-pane th[data-col-index="' + idx + '"]');
+        if (!th) return;
+        var colName = th.dataset.colName;
+        var cellValue = td.textContent.trim();
+        var condition;
+        if (cellValue === "" || cellValue === "None") {
+          condition = quoteIfNeeded(colName) + " IS NULL";
+        } else {
+          condition = quoteIfNeeded(colName) + " = '" + cellValue.replace(/'/g, "''") + "'";
+        }
+        editor.value = addWhereCondition(editor.value, condition);
+        syncHighlight();
+        updateRunButton();
+        td.classList.add("cell-filtered");
+        setTimeout(function () { td.classList.remove("cell-filtered"); }, 600);
+      });
+    });
+  }
+
+  function runAIQuery(text) {
+    clearAIResults();
+    runBtn.textContent = "Thinking...";
+    runBtn.classList.add("btn-thinking");
+    runBtn.disabled = true;
+
+    fetch("/plugins/sqlquery/ajax/ai-query/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]").value,
+      },
+      body: JSON.stringify({ query: text }),
+    })
+    .then(function (r) {
+      return r.json().then(function (data) { return { status: r.status, data: data }; });
+    })
+    .then(function (resp) {
+      var data = resp.data;
+
+      // Always update textarea with generated SQL if present
+      if (data.sql) {
+        editor.value = data.sql;
+        syncHighlight();
+        updateRunButton();
+      }
+
+      if (data.error) {
+        showAIError(data.error);
+      } else {
+        renderResults(data);
+      }
+    })
+    .catch(function () {
+      showAIError("Failed to connect to AI service.");
+    })
+    .then(function () {
+      // Reset button state (using .then instead of .finally for broader compat)
+      runBtn.disabled = false;
+      runBtn.classList.remove("btn-thinking");
+      updateRunButton();
+    }, function () {
+      // Also reset on rejection
+      runBtn.disabled = false;
+      runBtn.classList.remove("btn-thinking");
+      updateRunButton();
+    });
+  }
+
   function submitForm() {
+    var text = editor.value.trim();
+
+    // If AI is enabled and input doesn't look like SQL, run AI query
+    if (sqlFlags.ai_enabled && text && !looksLikeSQL(text)) {
+      runAIQuery(text);
+      return;
+    }
+
     // For write queries by superuser: check if confirmation is needed
     if (sqlFlags.is_superuser && isWriteQuery(editor.value)) {
       if (sqlFlags.skip_write_confirm) {
@@ -334,11 +498,13 @@
     });
   }
 
-  // Run query button
-  var runBtn = document.getElementById("run-query-btn");
+  // Run query button (runBtn declared earlier with updateRunButton)
   if (runBtn) {
     runBtn.addEventListener("click", function () { submitForm(); });
   }
+
+  // Set initial button state
+  updateRunButton();
 
   // Clear editor button
   var clearBtn = document.getElementById("clear-editor-btn");
@@ -347,6 +513,8 @@
       editor.value = "";
       editor.focus();
       syncHighlight();
+      updateRunButton();
+      clearAIResults();
     });
   }
 
@@ -471,6 +639,7 @@
             editor.value = el.dataset.sql;
             editor.focus();
             syncHighlight();
+            updateRunButton();
             hideModal(loadModal);
           });
         });
@@ -567,14 +736,16 @@
 
   // --- Column toggle in results ---
 
-  var resultHeaders = document.querySelectorAll(".results-pane th[data-col-name]");
-  if (resultHeaders.length > 0) {
-    var allColumns = Array.from(resultHeaders).map(function (th) {
+  function bindColumnToggle(container) {
+    var headers = container.querySelectorAll(".results-pane th[data-col-name]");
+    if (headers.length === 0) return;
+
+    var allColumns = Array.from(headers).map(function (th) {
       return th.dataset.colName;
     });
     var selected = new Set(allColumns);
 
-    resultHeaders.forEach(function (th) {
+    headers.forEach(function (th) {
       th.addEventListener("click", function () {
         var col = th.dataset.colName;
         var idx = th.dataset.colIndex;
@@ -591,7 +762,7 @@
 
         var isSelected = selected.has(col);
         th.classList.toggle("col-deselected", !isSelected);
-        document.querySelectorAll('td[data-col-index="' + idx + '"]').forEach(function (td) {
+        container.querySelectorAll('td[data-col-index="' + idx + '"]').forEach(function (td) {
           td.classList.toggle("col-deselected", !isSelected);
         });
 
@@ -600,6 +771,9 @@
       });
     });
   }
+
+  // Bind column toggle on server-rendered results
+  bindColumnToggle(document);
 
   // --- Cell click to add WHERE filter ---
 

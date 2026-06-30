@@ -2,8 +2,8 @@
 
 ## Requirements
 
-- NetBox 4.0 or later
-- Python 3.10 or later
+- NetBox 4.5 or later
+- Python 3.12 or later
 
 ## Standalone install
 
@@ -62,6 +62,53 @@ venv/bin/python netbox/manage.py collectstatic --no-input
 ### 5. Restart NetBox
 
 Restart all NetBox services (web server and worker) so the plugin is loaded.
+
+## Testing an unreleased version (from source)
+
+When there is no published PyPI package yet — testing a branch before cutting a release —
+install directly from a clone. An editable install reads `pyproject.toml`, so dependencies
+(including `sqlglot`, used by the SQL safety guards) are pulled in automatically.
+
+### Option A: editable install (fastest iteration)
+
+```bash
+# Get the source and the branch under test
+git clone https://github.com/ravinald/netbox-sqlquery.git
+cd netbox-sqlquery
+git checkout feature/llm
+
+# Install into NetBox's venv (resolves sqlglot and other deps)
+/opt/netbox/venv/bin/pip install -e .
+
+# Apply migrations and static files, then restart services
+/opt/netbox/venv/bin/python /opt/netbox/netbox/manage.py migrate netbox_sqlquery
+/opt/netbox/venv/bin/python /opt/netbox/netbox/manage.py collectstatic --no-input
+```
+
+Restart all NetBox services (web server **and** worker) afterwards.
+
+Editing the source then restarting NetBox picks up the changes — no reinstall needed.
+
+### Option B: build and install a local wheel (mirrors a real release)
+
+Use this to validate the packaged artifact itself before publishing:
+
+```bash
+cd netbox-sqlquery
+python -m build                      # requires: pip install build
+                                     # writes dist/netbox_sqlquery-<version>-py3-none-any.whl
+/opt/netbox/venv/bin/pip install dist/netbox_sqlquery-*.whl
+/opt/netbox/venv/bin/python /opt/netbox/netbox/manage.py migrate netbox_sqlquery
+/opt/netbox/venv/bin/python /opt/netbox/netbox/manage.py collectstatic --no-input
+```
+
+Notes:
+
+- Install with `pip install -e .` (or the wheel), **not** `--no-deps`. Skipping
+  dependencies leaves `sqlglot` out; the plugin still runs but falls back to weaker regex
+  SQL guards, so you would not be testing the real validation path.
+- For a Docker-based source test, see the "Installing from source (development)" section
+  of [docker.md](docker.md).
 
 ## Upgrading
 

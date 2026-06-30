@@ -41,7 +41,6 @@ EXCLUDED_MODELS = {
 
 # Columns to skip (internal, denormalized, or handled specially)
 SKIP_COLUMNS = {
-    "custom_field_data",
     "lft",
     "rght",
     "tree_id",
@@ -50,6 +49,13 @@ SKIP_COLUMNS = {
 
 # FK columns that are internal/denormalized and should not appear in the view
 INTERNAL_FK_PREFIXES = ("_",)
+
+# Extra columns to include from FK target tables alongside the resolved name.
+# Maps target_table -> list of (source_column, output_alias).
+# These are added as additional SELECT columns from the same LEFT JOIN.
+FK_EXTRA_COLUMNS = {
+    "dcim_site": [("facility", "facility")],
+}
 
 # Override the display expression for specific target tables
 # Default is to use the "name" column from the target table
@@ -338,6 +344,11 @@ def build_view_sql(model):
             join_parts.append(
                 f"LEFT JOIN {target_table} {j_alias} ON {j_alias}.id = {alias}.{col_name}"
             )
+
+            # Add extra columns from the FK target if configured
+            for src_col, out_alias in FK_EXTRA_COLUMNS.get(target_table, []):
+                extra_alias = _unique_name(out_alias)
+                select_parts.append(f"  {j_alias}.{src_col} AS {extra_alias}")
         else:
             # Regular column
             col_alias = _unique_name(out_name)

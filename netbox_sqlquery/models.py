@@ -62,6 +62,36 @@ class SavedQuery(models.Model):
         )
 
 
+class NLExample(models.Model):
+    """An accepted natural-language -> SQL pair, used as a few-shot example.
+
+    Written when a user runs or saves an AI-generated query, so retrieval improves
+    with use. The stored SQL is only ever shown back to the model as guidance, never
+    executed -- and retrieval is permission-scoped at query time (see nl_agent).
+    """
+
+    question = models.TextField()
+    sql = models.TextField()
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="nl_examples",
+        null=True,
+        blank=True,
+    )
+    created = models.DateTimeField(auto_now_add=True)
+
+    objects = RestrictedQuerySet.as_manager()
+
+    class Meta:
+        ordering = ["-created"]
+        verbose_name = "NL example"
+        verbose_name_plural = "NL examples"
+
+    def __str__(self):
+        return self.question[:80]
+
+
 class TablePermission(models.Model):
     SCOPE_EXACT = "exact"
     SCOPE_PREFIX = "prefix"

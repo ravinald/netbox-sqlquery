@@ -139,11 +139,18 @@ def extract_tables(sql):
 
     For abstract views (nb_* names), expands to the set of underlying tables
     so access control checks apply against the real tables.
+
+    Uses sqlglot's parse tree when available and falls back to a regex when the
+    statement cannot be parsed (or sqlglot is absent), so access checks never
+    silently see fewer tables than the SQL actually touches.
     """
     from .abstract_schema import ABSTRACT_TO_TABLES
+    from .sqlvalidate import statement_tables
 
-    pattern = r"\b(?:FROM|JOIN|INTO|UPDATE)\s+([\w_]+)"
-    raw_tables = set(re.findall(pattern, sql, re.IGNORECASE))
+    raw_tables = statement_tables(sql)
+    if raw_tables is None:
+        pattern = r"\b(?:FROM|JOIN|INTO|UPDATE)\s+([\w_]+)"
+        raw_tables = set(re.findall(pattern, sql, re.IGNORECASE))
 
     expanded = set()
     for t in raw_tables:
@@ -152,6 +159,30 @@ def extract_tables(sql):
         else:
             expanded.add(t)
     return expanded
+
+
+def filter_abstract_schema(user, abstract_schema):
+    """Return the subset of an abstract (nb_*) schema the user may query.
+
+    Drops any view whose underlying tables the user cannot access or that hit a
+    hard deny. Shared by the one-shot prompt builder and the agent's list/describe
+    tools so both see exactly the same permission-filtered surface.
+    """
+    from .abstract_schema import ABSTRACT_TO_TABLES
+
+    allowed = _allowed_tables(user)
+    denied = _hard_denies_set()
+
+    out = {}
+    for view_name, columns in abstract_schema.items():
+        underlying = ABSTRACT_TO_TABLES.get(view_name, set())
+        if underlying:
+            if allowed is not ALL_TABLES and not underlying.issubset(allowed):
+                continue
+            if underlying & denied:
+                continue
+        out[view_name] = columns
+    return out
 
 
 def check_access(user, tables):
@@ -169,7 +200,7 @@ def check_access(user, tables):
 
 
 def _hard_denies(tables):
-    deny_list = set(get_plugin_config("netbox_sqlquery", "deny_tables"))
+    deny_list = set(get_plugin_config("netbox_sqlquery", "deny_tables") or [])
     return tables & deny_list
 
 
@@ -203,7 +234,7 @@ def _allowed_tables(user):
 
 
 def _hard_denies_set():
-    return set(get_plugin_config("netbox_sqlquery", "deny_tables"))
+    return set(get_plugin_config("netbox_sqlquery", "deny_tables") or [])
 
 
 def can_execute_write(user):
