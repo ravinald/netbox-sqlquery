@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.8
+
+- Natural-language-to-SQL agent: a tool-calling loop (list/describe/lookup/dry-run/submit) over the query engine that enforces per-user permissions on every step, replacing the earlier one-shot generation.
+- SQL safety guards backed by sqlglot: single read-only SELECT/WITH proof and hallucinated-column detection.
+- Few-shot store (`NLExample`) that learns from accepted queries.
+- Fixed syntax-highlight caret drift in the editor (#6).
+- Pinned to NetBox 4.5.x (`max_version`); NetBox 4.6 requires plugin 0.2.x.
+
+Releases 0.1.3–0.1.7 shipped incremental fixes; see the GitHub Releases for details.
+
 ## 0.1.2
 
 - Fixed package to include templates and static files in the wheel (broken in 0.1.0 and 0.1.1)
