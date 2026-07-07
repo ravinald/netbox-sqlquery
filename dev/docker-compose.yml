@@ -1,0 +1,48 @@
+name: netbox-sqlquery-dev
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: netbox
+      POSTGRES_USER: netbox
+      POSTGRES_PASSWORD: netbox
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U netbox -d netbox"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  netbox:
+    build:
+      context: ..
+      dockerfile: dev/Dockerfile
+      args:
+        NETBOX_IMAGE: ${NETBOX_IMAGE:-netboxcommunity/netbox:v4.5.10}
+    image: netbox-sqlquery-dev
+    pull_policy: never
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - netbox.env
+    volumes:
+      - ../netbox_sqlquery:/opt/netbox-sqlquery/netbox_sqlquery:ro
+      - ./plugins.py:/etc/netbox/config/plugins.py:ro
+    ports:
+      - "8000:8080"
+
+volumes:
+  pgdata:
