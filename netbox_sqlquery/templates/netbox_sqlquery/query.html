@@ -57,6 +57,10 @@
     box-sizing: border-box !important;
     letter-spacing: normal !important;
     overflow-y: auto !important;
+    /* Reserve the scrollbar gutter on both layers so text wraps at the same
+       width whether or not the textarea's scrollbar is present -- otherwise the
+       overlay and the caret diverge (issue #6). */
+    scrollbar-gutter: stable;
   }
   .sql-editor-wrapper pre {
     position: absolute;
@@ -64,10 +68,14 @@
     width: 100%; height: 100%;
     pointer-events: none;
     background: var(--bs-body-bg, var(--tblr-body-bg, #fff)) !important;
-    overflow: auto;
+    /* Scroll is driven from the textarea in syncHighlight(); the overlay must
+       not own a scrollbar of its own, which would shift its text width. */
+    overflow: hidden !important;
     z-index: 0;
   }
   .sql-editor-wrapper pre code {
+    display: block;
+    white-space: inherit;
     font-size: inherit !important;
     padding: 0 !important;
     background: none !important;
