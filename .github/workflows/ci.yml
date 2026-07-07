@@ -113,7 +113,7 @@ jobs:
           cp -r . /tmp/netbox-docker/netbox-sqlquery
           # Create Dockerfile that installs from local source
           cat > /tmp/netbox-docker/Dockerfile-Plugins << 'DOCKERFILE'
-          FROM netboxcommunity/netbox:latest
+          FROM netboxcommunity/netbox:v4.5.10
           COPY --from=ghcr.io/astral-sh/uv:0.10 /uv /usr/local/bin/
           COPY ./netbox-sqlquery /opt/netbox-sqlquery
           RUN /usr/local/bin/uv pip install -e /opt/netbox-sqlquery
