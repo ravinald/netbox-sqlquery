@@ -16,7 +16,7 @@ A NetBox plugin that provides a SQL query interface with syntax highlighting, ab
 - Role-based access control integrated with NetBox's ObjectPermission system
 - Per-user color preferences for syntax highlighting
 - CSV export
-- Compatible with NetBox 4.5.x, netbox-docker, and OIDC providers (NetBox 4.6 requires plugin 0.2.x)
+- Compatible with NetBox 4.6.x, netbox-docker, and OIDC providers (NetBox 4.5.x: use plugin 0.1.x)
 
 ## Screenshots
 
@@ -60,7 +60,7 @@ See [COMPATIBILITY.md](COMPATIBILITY.md) for the full version matrix.
 
 | NetBox version | Python versions              |
 |----------------|------------------------------|
-| 4.5.x           | 3.12, 3.13, 3.14             |
+| 4.6.x           | 3.12, 3.13, 3.14             |
 
 ## Installation
 
