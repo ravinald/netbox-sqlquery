@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.0
+
+- NetBox 4.6 support (Django 6.0); `min_version` is now 4.6.0. For NetBox 4.5.x, use the 0.1.x line.
+- Query access for the new 4.6 tables: cable bundles, rack groups, and virtual machine types.
+- Documented branch-unaware behavior with netbox-branching: the SQL console and NL agent always query the `main` schema.
+
 ## 0.1.8
 
 - Natural-language-to-SQL agent: a tool-calling loop (list/describe/lookup/dry-run/submit) over the query engine that enforces per-user permissions on every step, replacing the earlier one-shot generation.

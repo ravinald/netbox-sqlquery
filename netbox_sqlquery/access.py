@@ -23,6 +23,7 @@ MENU_GROUP_TABLE_MAP = {
     },
     "dcim.view_rack": {
         "dcim_rack",
+        "dcim_rackgroup",
         "dcim_rackrole",
         "dcim_rackreservation",
         "dcim_racktype",
@@ -51,6 +52,7 @@ MENU_GROUP_TABLE_MAP = {
         "dcim_virtualdevicecontext",
         "dcim_macaddress",
         "dcim_cable",
+        "dcim_cablebundle",
     },
     "dcim.view_powerfeed": {
         "dcim_powerfeed",
@@ -95,6 +97,7 @@ MENU_GROUP_TABLE_MAP = {
         "virtualization_clustertype",
         "virtualization_virtualdisk",
         "virtualization_virtualmachine",
+        "virtualization_virtualmachinetype",
         "virtualization_vminterface",
     },
     "vpn.view_tunnel": {

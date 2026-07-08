@@ -12,12 +12,12 @@ class NetBoxSQLQueryConfig(PluginConfig):
         "SQL query interface for NetBox with syntax highlighting,"
         " abstract views, and role-based access control"
     )
-    version = "0.1.8"
+    version = "0.2.0"
     author = "Ravi Pina"
     author_email = "ravi@pina.org"
     base_url = "sqlquery"
-    min_version = "4.5.0"
-    max_version = "4.5.999"
+    min_version = "4.6.0"
+    max_version = "4.6.999"
     required_settings = []
     default_settings = {
         "require_superuser": True,
