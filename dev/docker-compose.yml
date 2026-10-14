@@ -42,7 +42,7 @@ services:
       - ../netbox_sqlquery:/opt/netbox-sqlquery/netbox_sqlquery:ro
       - ./plugins.py:/etc/netbox/config/plugins.py:ro
     ports:
-      - "8000:8080"
+      - "${NETBOX_PORT:-8000}:8080"
 
 volumes:
   pgdata:

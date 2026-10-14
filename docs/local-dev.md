@@ -13,11 +13,16 @@ the working tree is bind-mounted, so template and Python edits show on a browser
 
 ## Start
 
+From the repository root:
+
 ```bash
-cd dev
-docker compose up -d --build      # first run builds the plugin image
-docker compose logs -f netbox     # watch migrations + startup
+make up      # build, start, and wait until NetBox serves the login page
+make logs    # follow NetBox output
 ```
+
+Each checkout gets its own compose project, named from its directory, so two clones on one host are two stacks. They still share host port 8000; run a second one beside the first with `NETBOX_PORT=8001 make up`. `make up` refuses a port another checkout already holds.
+
+Running `docker compose` directly from `dev/` still works and uses the fixed project name `netbox-sqlquery-dev`.
 
 Browse to `http://<docker-host>:8000/` and log in as `admin` / `admin`. The editor lives at
 `http://<docker-host>:8000/plugins/sqlquery/`.
@@ -45,19 +50,21 @@ If you reach it from a different host than where Docker runs (e.g. a VM), add th
 ## Run the test suite
 
 ```bash
-docker compose exec netbox /opt/netbox/venv/bin/python \
-  /opt/netbox/netbox/manage.py test netbox_sqlquery
+make test    # the plugin's tests, with DEBUG off so the debug toolbar's check passes
+make gate    # ruff, Django checks, a missing-migration check, then the tests
 ```
+
+`make gate` is what every change must pass before it merges, and covers the lint and test jobs CI runs.
 
 ## Switch NetBox version
 
 ```bash
-NETBOX_IMAGE=netboxcommunity/netbox:v4.6.4 docker compose up -d --build
+NETBOX_IMAGE=netboxcommunity/netbox:v4.6.4 make up
 ```
 
 ## Tear down
 
 ```bash
-docker compose down          # keep the database volume
-docker compose down -v       # also wipe Postgres data
+make down     # keep the database volume
+make reset    # also wipe Postgres data
 ```
