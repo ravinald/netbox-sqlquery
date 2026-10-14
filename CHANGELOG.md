@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.0
+
+- NetBox 4.7 support (Django 6.1); `min_version` is now 4.7.0. For NetBox 4.6.x, use the 0.2.x line.
+- Query access for the new 4.7 tables: cooling sources, feeds, intakes and outflows, and module bay types.
+- The `nb_*` views omit 4.7's `ltree` bookkeeping columns (`path`, `sort_path`) as they did MPTT's, and skip the cooling component templates.
+- Migration `0004` records the `SavedQuery.name` validator the initial migration left out. It changes no database column.
+
 ## 0.2.0
 
 - NetBox 4.6 support (Django 6.0); `min_version` is now 4.6.0. For NetBox 4.5.x, use the 0.1.x line.

@@ -28,7 +28,7 @@ services:
       context: ..
       dockerfile: dev/Dockerfile
       args:
-        NETBOX_IMAGE: ${NETBOX_IMAGE:-netboxcommunity/netbox:v4.5.10}
+        NETBOX_IMAGE: ${NETBOX_IMAGE:-netboxcommunity/netbox:v4.7.3}
     image: netbox-sqlquery-dev
     pull_policy: never
     depends_on:

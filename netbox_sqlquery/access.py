@@ -37,6 +37,7 @@ MENU_GROUP_TABLE_MAP = {
         "dcim_modulebay",
         "dcim_moduletype",
         "dcim_moduletypeprofile",
+        "dcim_modulebaytype",
         "dcim_manufacturer",
         "dcim_platform",
         "dcim_interface",
@@ -46,6 +47,8 @@ MENU_GROUP_TABLE_MAP = {
         "dcim_consoleserverport",
         "dcim_powerport",
         "dcim_poweroutlet",
+        "dcim_coolingintake",
+        "dcim_coolingoutflow",
         "dcim_inventoryitem",
         "dcim_inventoryitemrole",
         "dcim_virtualchassis",
@@ -57,6 +60,10 @@ MENU_GROUP_TABLE_MAP = {
     "dcim.view_powerfeed": {
         "dcim_powerfeed",
         "dcim_powerpanel",
+    },
+    "dcim.view_coolingfeed": {
+        "dcim_coolingfeed",
+        "dcim_coolingsource",
     },
     "ipam.view_ipaddress": {
         "ipam_aggregate",

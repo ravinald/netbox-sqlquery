@@ -1,6 +1,6 @@
 # Local-dev image: NetBox + this plugin installed editable, so a runtime bind
 # mount of the working tree makes template and Python edits live (with DEBUG on).
-ARG NETBOX_IMAGE=netboxcommunity/netbox:v4.5.10
+ARG NETBOX_IMAGE=netboxcommunity/netbox:v4.7.3
 FROM ${NETBOX_IMAGE}
 
 # Minimal metadata for the editable install; the full package is bind-mounted at runtime.
