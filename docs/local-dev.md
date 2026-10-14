@@ -8,8 +8,8 @@ the working tree is bind-mounted, so template and Python edits show on a browser
 
 - Docker Engine + Compose v2, on any Linux host (a VM works well), macOS Docker Desktop,
   Colima, or OrbStack.
-- The stack pins `netboxcommunity/netbox:v4.5.10` by default. Override with `NETBOX_IMAGE`
-  (e.g. `v4.6.4`) to test another NetBox line.
+- The stack pins `netboxcommunity/netbox:v4.7.3` by default. Override with `NETBOX_IMAGE`
+  (e.g. `v4.6.4` against the `release/0.2.x` branch) to test another NetBox line.
 
 ## Start
 
@@ -59,7 +59,7 @@ make gate    # ruff, Django checks, a missing-migration check, then the tests
 ## Switch NetBox version
 
 ```bash
-NETBOX_IMAGE=netboxcommunity/netbox:v4.6.4 make up
+NETBOX_IMAGE=netboxcommunity/netbox:v4.6.4 make up   # with release/0.2.x checked out
 ```
 
 ## Tear down

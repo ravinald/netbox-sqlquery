@@ -109,3 +109,24 @@ class CheckAccessTest(TestCase):
         self.assertTrue(perm.matches("dcim_device"))
         self.assertTrue(perm.matches("dcim_site"))
         self.assertFalse(perm.matches("ipam_ipaddress"))
+
+
+class MenuGroupCoverageTest(TestCase):
+    def test_every_abstract_view_table_is_granted_by_a_menu_group(self):
+        # A table missing from the map is reachable by superusers alone, with no
+        # error to say so, which is how each new NetBox minor's tables arrive.
+        from django.apps import apps
+
+        from netbox_sqlquery.abstract_schema import EXCLUDED_MODELS, INCLUDED_APPS
+        from netbox_sqlquery.access import MENU_GROUP_TABLE_MAP
+
+        granted = set(SHARED_TABLES).union(*MENU_GROUP_TABLE_MAP.values())
+        unmapped = sorted(
+            model._meta.db_table
+            for model in apps.get_models()
+            if model._meta.app_label in INCLUDED_APPS
+            and not model._meta.auto_created
+            and f"{model._meta.app_label}.{model._meta.model_name}" not in EXCLUDED_MODELS
+            and model._meta.db_table not in granted
+        )
+        self.assertEqual(unmapped, [])

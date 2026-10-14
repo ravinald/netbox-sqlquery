@@ -2,7 +2,7 @@
 
 ## Requirements
 
-- NetBox 4.6.x (for NetBox 4.5.x use plugin 0.1.x)
+- NetBox 4.7.x (for NetBox 4.6.x use plugin 0.2.x, for 4.5.x use 0.1.x)
 - Python 3.12 or later
 
 ## Standalone install

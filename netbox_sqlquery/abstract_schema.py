@@ -27,6 +27,8 @@ EXCLUDED_MODELS = {
     "dcim.cabletermination",
     "dcim.consoleporttemplate",
     "dcim.consoleserverporttemplate",
+    "dcim.coolingintaketemplate",
+    "dcim.coolingoutflowtemplate",
     "dcim.devicebaytemplate",
     "dcim.frontporttemplate",
     "dcim.interfacetemplate",
@@ -39,12 +41,17 @@ EXCLUDED_MODELS = {
     "dcim.rearporttemplate",
 }
 
-# Columns to skip (internal, denormalized, or handled specially)
+# Columns to skip (internal, denormalized, or handled specially). NetBox 4.7
+# dropped MPTT's lft/rght/tree_id/level for a trigger-maintained ltree `path`
+# and `sort_path`; both sets are hierarchy bookkeeping, and `parent` carries
+# the relationship in a form a query can use.
 SKIP_COLUMNS = {
     "lft",
     "rght",
     "tree_id",
     "level",
+    "path",
+    "sort_path",
 }
 
 # FK columns that are internal/denormalized and should not appear in the view
